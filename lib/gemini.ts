@@ -3,13 +3,30 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const apiKey = process.env.GEMINI_API_KEY;
 
 function cleanJsonText(text: string) {
-  return text.replace(/```json/g, "").replace(/```/g, "").trim();
+  const cleaned = text
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+
+  if (start >= 0 && end >= 0) {
+    return cleaned.slice(start, end + 1);
+  }
+
+  return cleaned;
 }
 
-async function runModel(modelName: string, prompt: string, genAI: GoogleGenerativeAI) {
+async function runModel(
+  modelName: string,
+  prompt: string,
+  genAI: GoogleGenerativeAI
+) {
   const model = genAI.getGenerativeModel({ model: modelName });
   const result = await model.generateContent(prompt);
   const text = result.response.text();
+
   return JSON.parse(cleanJsonText(text));
 }
 
@@ -30,6 +47,7 @@ export async function analyzeStockWithAI(stockData: any) {
 
 注意：
 - 投資助言ではなく分析コメントとして書く
+- 判定がStrong BuyやBuyでも、リスクは「買ってはいけない理由」ではなく「主なリスク」として自然に書く
 - 良い点だけでなくリスクも必ず書く
 - 日本語で簡潔に書く
 - 必ずJSONのみ返す
@@ -41,7 +59,7 @@ ${JSON.stringify(stockData, null, 2)}
 {
   "summary": "AI総評を2〜4文で書く",
   "whyUp": ["注目される理由1", "理由2", "理由3"],
-  "risks": ["買ってはいけない理由1", "理由2", "理由3"]
+  "risks": ["主なリスク1", "リスク2", "リスク3"]
 }
 `;
 

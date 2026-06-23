@@ -4,10 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { searchStocks } from "@/lib/stockMaster";
 
+type ScoreBreakdown = {
+  valuation: number;
+  dividend: number;
+  momentum: number;
+  theme: number;
+};
+
 type AnalysisResult = {
-  ticker: string;
-  symbol: string;
-  companyName: string;
+  ticker?: string;
+  symbol?: string;
+  companyName?: string;
   price: number | null;
   changePercent: number | null;
   marketCap: number | null;
@@ -15,14 +22,34 @@ type AnalysisResult = {
   per: number | null;
   pbr: number | null;
   dividendYield: number | null;
-  score: number;
-  rating: string;
+  score?: number;
+  rating?: string;
+  breakdown?: ScoreBreakdown;
+  error?: string;
+  detail?: string;
   ai?: {
     summary: string;
     whyUp: string[];
     risks: string[];
   } | null;
 };
+
+function ScoreRow({ label, score }: { label: string; score: number }) {
+  const stars = Math.round(score / 20);
+
+  return (
+    <div className="flex items-center justify-between border-b py-2 last:border-b-0">
+      <div>
+        <p className="font-semibold">{label}</p>
+        <p className="text-xs text-gray-500">
+          {"★".repeat(stars)}
+          {"☆".repeat(5 - stars)}
+        </p>
+      </div>
+      <p className="font-bold">{score}点</p>
+    </div>
+  );
+}
 
 export default function Home() {
   const [ticker, setTicker] = useState("5801");
@@ -35,17 +62,31 @@ export default function Home() {
     setLoading(true);
     setResult(null);
 
-    const res = await fetch("/api/analyze", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ticker }),
-    });
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ticker }),
+      });
 
-    const data = await res.json();
-    setResult(data);
-    setLoading(false);
+      const data = await res.json();
+      setResult(data);
+    } catch {
+      setResult({
+        price: null,
+        changePercent: null,
+        marketCap: null,
+        volume: null,
+        per: null,
+        pbr: null,
+        dividendYield: null,
+        error: "分析に失敗しました。",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatNumber = (value: number | null) => {
@@ -56,6 +97,11 @@ export default function Home() {
   const formatPercent = (value: number | null) => {
     if (value === null || value === undefined) return "-";
     return `${value.toFixed(2)}%`;
+  };
+
+  const formatDividendYield = (value: number | null) => {
+    if (value === null || value === undefined) return "-";
+    return `${(value * 100).toFixed(2)}%`;
   };
 
   return (
@@ -120,7 +166,17 @@ export default function Home() {
         {loading ? "分析中..." : "分析開始"}
       </button>
 
-      {result && (
+      {result?.error && (
+        <div className="mt-6 p-4 border rounded bg-red-50">
+          <p className="font-bold">エラー</p>
+          <p className="text-sm mt-2">{result.error}</p>
+          {result.detail && (
+            <p className="text-xs mt-2 text-gray-600">{result.detail}</p>
+          )}
+        </div>
+      )}
+
+      {result && !result.error && (
         <div className="mt-6 p-4 border rounded space-y-2">
           <h2 className="text-xl font-bold">{result.companyName}</h2>
 
@@ -129,18 +185,23 @@ export default function Home() {
           <p>前日比: {formatPercent(result.changePercent)}</p>
           <p>PER: {result.per?.toFixed(2) ?? "-"}</p>
           <p>PBR: {result.pbr?.toFixed(2) ?? "-"}</p>
-          <p>
-            配当利回り:{" "}
-            {result.dividendYield
-              ? `${(result.dividendYield * 100).toFixed(2)}%`
-              : "-"}
-          </p>
+          <p>配当利回り: {formatDividendYield(result.dividendYield)}</p>
           <p>出来高: {formatNumber(result.volume)}</p>
 
           <div className="mt-4 p-4 bg-green-50 rounded">
             <p className="text-lg font-bold">総合スコア: {result.score}点</p>
             <p className="text-lg font-bold">判定: {result.rating}</p>
           </div>
+
+          {result.breakdown && (
+            <div className="mt-4 border rounded p-4">
+              <h3 className="font-bold mb-3">スコア内訳</h3>
+              <ScoreRow label="割安性" score={result.breakdown.valuation} />
+              <ScoreRow label="配当" score={result.breakdown.dividend} />
+              <ScoreRow label="需給" score={result.breakdown.momentum} />
+              <ScoreRow label="テーマ性" score={result.breakdown.theme} />
+            </div>
+          )}
 
           {result.ai && (
             <div className="mt-6 space-y-4">
@@ -150,7 +211,7 @@ export default function Home() {
               </div>
 
               <div className="border rounded p-4 bg-green-50">
-                <h3 className="font-bold mb-2">なぜ上がった？</h3>
+                <h3 className="font-bold mb-2">注目される理由</h3>
                 <ul className="text-sm leading-6">
                   {result.ai.whyUp.map((item, i) => (
                     <li key={i}>• {item}</li>
@@ -159,7 +220,7 @@ export default function Home() {
               </div>
 
               <div className="border rounded p-4 bg-red-50">
-                <h3 className="font-bold mb-2">買ってはいけない理由</h3>
+                <h3 className="font-bold mb-2">主なリスク</h3>
                 <ul className="text-sm leading-6">
                   {result.ai.risks.map((item, i) => (
                     <li key={i}>• {item}</li>

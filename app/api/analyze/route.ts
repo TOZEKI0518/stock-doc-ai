@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStockData } from "@/lib/stockData";
-import { calculateScore, getRating } from "@/lib/scoring";
+import { calculateDetailedScore, getRating } from "@/lib/scoring";
 import { analyzeStockWithAI } from "@/lib/gemini";
 
 export async function POST(req: Request) {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const stock = await getStockData(ticker);
 
-    const score = calculateScore({
+    const scores = calculateDetailedScore({
       per: stock.per,
       pbr: stock.pbr,
       dividendYield: stock.dividendYield,
@@ -25,17 +25,26 @@ export async function POST(req: Request) {
       volume: stock.volume,
     });
 
-    const rating = getRating(score);
+    const rating = getRating(scores.total);
+
+    const breakdown = {
+      valuation: scores.valuation,
+      dividend: scores.dividend,
+      momentum: scores.momentum,
+      theme: scores.theme,
+    };
 
     const ai = await analyzeStockWithAI({
       ...stock,
-      score,
+      score: scores.total,
+      breakdown,
       rating,
     });
 
     return NextResponse.json({
       ...stock,
-      score,
+      score: scores.total,
+      breakdown,
       rating,
       ai,
     });
