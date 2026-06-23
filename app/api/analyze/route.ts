@@ -15,7 +15,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const stock = await getStockData(ticker);
+    const stock = await getStockData(ticker, {
+      includeAdvanced: true,
+      includeHistory: true,
+    });
 
     const scores = calculateDetailedScore({
       per: stock.per,
@@ -23,28 +26,33 @@ export async function POST(req: Request) {
       dividendYield: stock.dividendYield,
       changePercent: stock.changePercent,
       volume: stock.volume,
+      roe: stock.roe,
+      profitMargin: stock.profitMargin,
+      revenueGrowth: stock.revenueGrowth,
+      earningsGrowth: stock.earningsGrowth,
+      debtToEquity: stock.debtToEquity,
+      freeCashflow: stock.freeCashflow,
+      operatingCashflow: stock.operatingCashflow,
+      fiftyTwoWeekHighGap: stock.fiftyTwoWeekHighGap,
+      ma25Gap: stock.ma25Gap,
+      ma75Gap: stock.ma75Gap,
+      volumeAvg20: stock.volumeAvg20,
+      sixMonthReturn: stock.sixMonthReturn,
     });
 
     const rating = getRating(scores.total);
 
-    const breakdown = {
-      valuation: scores.valuation,
-      dividend: scores.dividend,
-      momentum: scores.momentum,
-      theme: scores.theme,
-    };
-
     const ai = await analyzeStockWithAI({
       ...stock,
       score: scores.total,
-      breakdown,
+      breakdown: scores,
       rating,
     });
 
     return NextResponse.json({
       ...stock,
       score: scores.total,
-      breakdown,
+      breakdown: scores,
       rating,
       ai,
     });

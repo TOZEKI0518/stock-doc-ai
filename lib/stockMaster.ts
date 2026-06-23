@@ -10,22 +10,39 @@ export type StockMaster = {
 
 export const STOCK_MASTER = stockMasterJson as StockMaster[];
 
-export function searchStocks(query: string) {
-  const q = query.trim().toLowerCase();
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) =>
+      String.fromCharCode(s.charCodeAt(0) - 0xfee0)
+    )
+    .replace(/　/g, " ");
+}
 
-  if (!q) return STOCK_MASTER.slice(0, 10);
+export function searchStocks(query: string) {
+  const q = normalizeText(query);
+
+  if (!q) return STOCK_MASTER.slice(0, 25);
+
+  const keywords = q.split(/\s+/).filter(Boolean);
 
   return STOCK_MASTER.filter((stock) => {
-    return (
-      stock.code.includes(q) ||
-      stock.name.toLowerCase().includes(q) ||
-      stock.market.toLowerCase().includes(q) ||
-      stock.sector.toLowerCase().includes(q) ||
-      stock.themes.some((theme) => theme.toLowerCase().includes(q))
+    const target = normalizeText(
+      [
+        stock.code,
+        stock.name,
+        stock.market,
+        stock.sector,
+        ...stock.themes,
+      ].join(" ")
     );
-  }).slice(0, 10);
+
+    return keywords.every((keyword) => target.includes(keyword));
+  }).slice(0, 25);
 }
 
 export function findStockByCode(code: string) {
-  return STOCK_MASTER.find((stock) => stock.code === code);
+  const cleanCode = normalizeText(code).replace(".t", "");
+  return STOCK_MASTER.find((stock) => stock.code === cleanCode);
 }
