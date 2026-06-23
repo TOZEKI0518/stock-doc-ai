@@ -1,20 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { searchStocks } from "@/lib/stockMaster";
 
-type ScoreBreakdown = {
-  valuation: number;
-  dividend: number;
-  momentum: number;
-  theme: number;
-};
-
 type AnalysisResult = {
-  ticker?: string;
-  symbol?: string;
-  companyName?: string;
+  ticker: string;
+  symbol: string;
+  companyName: string;
   price: number | null;
   changePercent: number | null;
   marketCap: number | null;
@@ -22,11 +15,14 @@ type AnalysisResult = {
   per: number | null;
   pbr: number | null;
   dividendYield: number | null;
-  score?: number;
-  rating?: string;
-  breakdown?: ScoreBreakdown;
-  error?: string;
-  detail?: string;
+  score: number;
+  rating: string;
+  breakdown?: {
+    valuation: number;
+    dividend: number;
+    momentum: number;
+    theme: number;
+  };
   ai?: {
     summary: string;
     whyUp: string[];
@@ -34,22 +30,12 @@ type AnalysisResult = {
   } | null;
 };
 
-function ScoreRow({ label, score }: { label: string; score: number }) {
-  const stars = Math.round(score / 20);
-
-  return (
-    <div className="flex items-center justify-between border-b py-2 last:border-b-0">
-      <div>
-        <p className="font-semibold">{label}</p>
-        <p className="text-xs text-gray-500">
-          {"★".repeat(stars)}
-          {"☆".repeat(5 - stars)}
-        </p>
-      </div>
-      <p className="font-bold">{score}点</p>
-    </div>
-  );
-}
+type Recommendation = {
+  code: string;
+  name: string;
+  score: number;
+  themes: string[];
+};
 
 export default function Home() {
   const [ticker, setTicker] = useState("5801");
@@ -57,8 +43,38 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState(searchStocks(""));
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState("");
 
-  const analyze = async () => {
+  useEffect(() => {
+    const loadRecommendations = async () => {
+      try {
+        setRecommendationsLoading(true);
+        setRecommendationsError("");
+
+        const res = await fetch("/api/recommendations", {
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error("recommendations api failed");
+        }
+
+        const data = await res.json();
+        setRecommendations(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(error);
+        setRecommendationsError("推奨銘柄の取得に失敗しました。");
+      } finally {
+        setRecommendationsLoading(false);
+      }
+    };
+
+    loadRecommendations();
+  }, []);
+
+  const analyze = async (targetTicker = ticker) => {
     setLoading(true);
     setResult(null);
 
@@ -68,22 +84,13 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ticker }),
+        body: JSON.stringify({ ticker: targetTicker }),
       });
 
       const data = await res.json();
       setResult(data);
-    } catch {
-      setResult({
-        price: null,
-        changePercent: null,
-        marketCap: null,
-        volume: null,
-        per: null,
-        pbr: null,
-        dividendYield: null,
-        error: "分析に失敗しました。",
-      });
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -99,146 +106,213 @@ export default function Home() {
     return `${value.toFixed(2)}%`;
   };
 
-  const formatDividendYield = (value: number | null) => {
-    if (value === null || value === undefined) return "-";
-    return `${(value * 100).toFixed(2)}%`;
+  const scoreBarClass = (score: number) => {
+    if (score >= 85) return "bg-emerald-500";
+    if (score >= 70) return "bg-green-500";
+    if (score >= 55) return "bg-yellow-500";
+    return "bg-red-500";
   };
 
-  return (
-    <main className="max-w-md mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">株ドックAI</h1>
-
-      <div className="mb-4">
-        <Link href="/glossary" className="text-green-700 underline">
-          📚 用語辞典を見る
-        </Link>
+  const renderScoreRow = (label: string, score: number) => (
+    <div>
+      <div className="flex justify-between text-sm text-slate-100 mb-1">
+        <span>{label}</span>
+        <span className="font-bold">{score}点</span>
       </div>
-
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="コード・会社名・テーマで検索"
-          value={query}
-          onChange={(e) => {
-            const value = e.target.value;
-            setQuery(value);
-            setSuggestions(searchStocks(value));
-
-            if (/^\d{4}$/.test(value)) {
-              setTicker(value);
-            }
-          }}
-          className="border p-2 w-full rounded"
+      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${scoreBarClass(score)}`}
+          style={{ width: `${Math.min(Math.max(score, 0), 100)}%` }}
         />
+      </div>
+    </div>
+  );
 
-        {query && suggestions.length > 0 && (
-          <div className="border rounded mt-1 bg-white max-h-60 overflow-y-auto">
-            {suggestions.map((stock) => (
+  return (
+    <main className="min-h-screen bg-slate-950 text-white">
+      <div className="max-w-md mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-2">株ドックAI</h1>
+        <p className="text-sm text-slate-300 mb-5">
+          銘柄検索、AI総評、リスク、今日の推奨銘柄をまとめて確認できます。
+        </p>
+
+        <div className="mb-4">
+          <Link href="/glossary" className="text-emerald-300 underline">
+            📚 用語辞典を見る
+          </Link>
+        </div>
+
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="コード・会社名・テーマで検索"
+            value={query}
+            onChange={(e) => {
+              const value = e.target.value;
+              setQuery(value);
+              setSuggestions(searchStocks(value));
+
+              if (/^\d{4}$/.test(value)) {
+                setTicker(value);
+              }
+            }}
+            className="border border-slate-600 bg-slate-900 text-white placeholder:text-slate-400 p-3 w-full rounded"
+          />
+
+          {query && suggestions.length > 0 && (
+            <div className="absolute z-10 w-full border border-slate-700 rounded mt-1 bg-slate-900 max-h-72 overflow-y-auto shadow-lg">
+              {suggestions.map((stock) => (
+                <button
+                  key={stock.code}
+                  onClick={() => {
+                    setTicker(stock.code);
+                    setQuery(`${stock.code} ${stock.name}`);
+                    setSuggestions([]);
+                  }}
+                  className="block w-full text-left p-3 hover:bg-slate-800 border-b border-slate-800 last:border-b-0"
+                >
+                  <div className="font-bold text-white">
+                    {stock.code} {stock.name}
+                  </div>
+                  <div className="text-xs text-slate-300 mt-1">
+                    {stock.market}｜{stock.sector}
+                  </div>
+                  <div className="text-xs text-emerald-300 mt-1">
+                    {stock.themes.join(" / ")}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => analyze()}
+          disabled={loading}
+          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold w-full p-3 mt-4 rounded disabled:opacity-50"
+        >
+          {loading ? "分析中..." : "分析開始"}
+        </button>
+
+        {result && (
+          <div className="mt-6 p-4 border border-slate-700 bg-slate-900 rounded space-y-3">
+            <h2 className="text-xl font-bold text-white">{result.companyName}</h2>
+
+            <div className="grid grid-cols-2 gap-2 text-sm text-slate-100">
+              <p>コード: {result.symbol}</p>
+              <p>株価: {formatNumber(result.price)} 円</p>
+              <p>前日比: {formatPercent(result.changePercent)}</p>
+              <p>PER: {result.per?.toFixed(2) ?? "-"}</p>
+              <p>PBR: {result.pbr?.toFixed(2) ?? "-"}</p>
+              <p>
+                配当利回り:{" "}
+                {result.dividendYield
+                  ? `${(result.dividendYield * 100).toFixed(2)}%`
+                  : "-"}
+              </p>
+              <p className="col-span-2">出来高: {formatNumber(result.volume)}</p>
+            </div>
+
+            <div className="mt-4 p-4 bg-emerald-950 border border-emerald-700 rounded">
+              <p className="text-lg font-bold text-white">
+                総合スコア: {result.score}点
+              </p>
+              <p className="text-lg font-bold text-emerald-300">
+                判定: {result.rating}
+              </p>
+            </div>
+
+            {result.breakdown && (
+              <div className="mt-4 p-4 bg-slate-800 border border-slate-700 rounded space-y-3">
+                <h3 className="font-bold text-white">スコア内訳</h3>
+                {renderScoreRow("割安性", result.breakdown.valuation)}
+                {renderScoreRow("配当", result.breakdown.dividend)}
+                {renderScoreRow("需給", result.breakdown.momentum)}
+                {renderScoreRow("テーマ性", result.breakdown.theme)}
+              </div>
+            )}
+
+            {result.ai && (
+              <div className="mt-6 space-y-4">
+                <div className="border border-blue-700 rounded p-4 bg-blue-950">
+                  <h3 className="font-bold mb-2 text-white">AI総評</h3>
+                  <p className="text-sm leading-6 text-blue-50">
+                    {result.ai.summary}
+                  </p>
+                </div>
+
+                <div className="border border-emerald-700 rounded p-4 bg-emerald-950">
+                  <h3 className="font-bold mb-2 text-white">注目される理由</h3>
+                  <ul className="text-sm leading-6 text-emerald-50">
+                    {result.ai.whyUp.map((item, i) => (
+                      <li key={i}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="border border-red-700 rounded p-4 bg-red-950">
+                  <h3 className="font-bold mb-2 text-white">主なリスク</h3>
+                  <ul className="text-sm leading-6 text-red-50">
+                    {result.ai.risks.map((item, i) => (
+                      <li key={i}>• {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-8 p-4 border border-slate-700 bg-slate-900 rounded">
+          <h2 className="font-bold text-lg mb-3 text-white">今日の推奨銘柄</h2>
+
+          {recommendationsLoading && (
+            <p className="text-sm text-slate-300">計算中...</p>
+          )}
+
+          {recommendationsError && (
+            <p className="text-sm text-red-300">{recommendationsError}</p>
+          )}
+
+          {!recommendationsLoading && recommendations.length === 0 && !recommendationsError && (
+            <p className="text-sm text-slate-300">推奨銘柄が見つかりませんでした。</p>
+          )}
+
+          <div className="space-y-3">
+            {recommendations.map((stock, index) => (
               <button
                 key={stock.code}
                 onClick={() => {
                   setTicker(stock.code);
                   setQuery(`${stock.code} ${stock.name}`);
-                  setSuggestions([]);
+                  analyze(stock.code);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                className="block w-full text-left p-2 hover:bg-gray-100"
+                className="w-full text-left border border-slate-700 rounded p-3 bg-slate-800 hover:bg-slate-700"
               >
-                <div className="font-bold">
-                  {stock.code} {stock.name}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-white">
+                      {index + 1}位 {stock.name}
+                    </div>
+                    <div className="text-xs text-slate-300 mt-1">
+                      {stock.code}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-emerald-300">
+                      {stock.score}点
+                    </div>
+                    <div className="text-xs text-slate-300">AI候補</div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {stock.market}｜{stock.sector}
-                </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-emerald-300 mt-2">
                   {stock.themes.join(" / ")}
                 </div>
               </button>
             ))}
           </div>
-        )}
-      </div>
-
-      <button
-        onClick={analyze}
-        disabled={loading}
-        className="bg-green-600 text-white w-full p-2 mt-4 rounded disabled:opacity-50"
-      >
-        {loading ? "分析中..." : "分析開始"}
-      </button>
-
-      {result?.error && (
-        <div className="mt-6 p-4 border rounded bg-red-50">
-          <p className="font-bold">エラー</p>
-          <p className="text-sm mt-2">{result.error}</p>
-          {result.detail && (
-            <p className="text-xs mt-2 text-gray-600">{result.detail}</p>
-          )}
         </div>
-      )}
-
-      {result && !result.error && (
-        <div className="mt-6 p-4 border rounded space-y-2">
-          <h2 className="text-xl font-bold">{result.companyName}</h2>
-
-          <p>コード: {result.symbol}</p>
-          <p>株価: {formatNumber(result.price)} 円</p>
-          <p>前日比: {formatPercent(result.changePercent)}</p>
-          <p>PER: {result.per?.toFixed(2) ?? "-"}</p>
-          <p>PBR: {result.pbr?.toFixed(2) ?? "-"}</p>
-          <p>配当利回り: {formatDividendYield(result.dividendYield)}</p>
-          <p>出来高: {formatNumber(result.volume)}</p>
-
-          <div className="mt-4 p-4 bg-green-50 rounded">
-            <p className="text-lg font-bold">総合スコア: {result.score}点</p>
-            <p className="text-lg font-bold">判定: {result.rating}</p>
-          </div>
-
-          {result.breakdown && (
-            <div className="mt-4 border rounded p-4">
-              <h3 className="font-bold mb-3">スコア内訳</h3>
-              <ScoreRow label="割安性" score={result.breakdown.valuation} />
-              <ScoreRow label="配当" score={result.breakdown.dividend} />
-              <ScoreRow label="需給" score={result.breakdown.momentum} />
-              <ScoreRow label="テーマ性" score={result.breakdown.theme} />
-            </div>
-          )}
-
-          {result.ai && (
-            <div className="mt-6 space-y-4">
-              <div className="border rounded p-4 bg-blue-50">
-                <h3 className="font-bold mb-2">AI総評</h3>
-                <p className="text-sm leading-6">{result.ai.summary}</p>
-              </div>
-
-              <div className="border rounded p-4 bg-green-50">
-                <h3 className="font-bold mb-2">注目される理由</h3>
-                <ul className="text-sm leading-6">
-                  {result.ai.whyUp.map((item, i) => (
-                    <li key={i}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="border rounded p-4 bg-red-50">
-                <h3 className="font-bold mb-2">主なリスク</h3>
-                <ul className="text-sm leading-6">
-                  {result.ai.risks.map((item, i) => (
-                    <li key={i}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="mt-8 p-4 border rounded">
-        <h2 className="font-bold">今日の推奨銘柄</h2>
-        <ul className="mt-2">
-          <li>① 古河電工</li>
-          <li>② JX金属</li>
-          <li>③ SWCC</li>
-        </ul>
       </div>
     </main>
   );
