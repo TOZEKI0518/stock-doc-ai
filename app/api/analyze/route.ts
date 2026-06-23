@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getStockData } from "@/lib/stockData";
 import { calculateDetailedScore, getRating } from "@/lib/scoring";
 import { analyzeStockWithAI } from "@/lib/gemini";
+import { findStockByCode } from "@/lib/stockMaster";
+import { calculateThemeScore } from "@/lib/themeScore";
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +21,10 @@ export async function POST(req: Request) {
       includeAdvanced: true,
       includeHistory: true,
     });
+
+    const master = findStockByCode(stock.ticker);
+    const themes = master?.themes ?? [];
+    const themeScore = calculateThemeScore(themes);
 
     const scores = calculateDetailedScore({
       per: stock.per,
@@ -40,19 +46,35 @@ export async function POST(req: Request) {
       sixMonthReturn: stock.sixMonthReturn,
     });
 
-    const rating = getRating(scores.total);
+    // 半年保有向けの総合点にテーマ性を少し反映
+    const finalScore = Math.min(
+      Math.max(
+        Math.round(scores.total * 0.85 + themeScore * 0.15),
+        0
+      ),
+      100
+    );
+
+    const rating = getRating(finalScore);
+
+    const breakdown = {
+      ...scores,
+      theme: themeScore,
+    };
 
     const ai = await analyzeStockWithAI({
       ...stock,
-      score: scores.total,
-      breakdown: scores,
+      themes,
+      score: finalScore,
+      breakdown,
       rating,
     });
 
     return NextResponse.json({
       ...stock,
-      score: scores.total,
-      breakdown: scores,
+      themes,
+      score: finalScore,
+      breakdown,
       rating,
       ai,
     });

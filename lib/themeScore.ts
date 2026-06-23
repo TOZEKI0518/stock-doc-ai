@@ -10,7 +10,7 @@ export function calculateThemeScore(themes: string[]) {
     "半導体製造装置": 22,
     "パワー半導体": 18,
     "検査装置": 16,
-    "EUV": 16,
+    EUV: 16,
     "パッケージ基板": 16,
 
     データセンター: 20,
