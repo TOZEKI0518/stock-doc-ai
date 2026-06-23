@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { searchStocks } from "@/lib/stockMaster";
+import {
+  addFavorite,
+  FavoriteStock,
+  getFavorites,
+  isFavorite,
+  removeFavorite,
+} from "@/lib/favorites";
 
 type AnalysisResult = {
   ticker: string;
@@ -22,6 +29,11 @@ type AnalysisResult = {
     dividend: number;
     momentum: number;
     theme: number;
+    profitability?: number;
+    growth?: number;
+    safety?: number;
+    overheat?: number;
+    sixMonthSuitability?: number;
   };
   ai?: {
     summary: string;
@@ -37,17 +49,38 @@ type Recommendation = {
   themes: string[];
 };
 
+type FutureStar = {
+  code: string;
+  name: string;
+  score: number;
+  themes: string[];
+  growth: number;
+  theme: number;
+  profitability: number;
+  safety: number;
+  reasons: string[];
+};
+
 export default function Home() {
   const [ticker, setTicker] = useState("5801");
   const [query, setQuery] = useState("5801 古河電気工業");
   const [suggestions, setSuggestions] = useState(searchStocks(""));
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [favorites, setFavorites] = useState<FavoriteStock[]>([]);
+
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsError, setRecommendationsError] = useState("");
 
+  const [futureStars, setFutureStars] = useState<FutureStar[]>([]);
+  const [futureStarsLoading, setFutureStarsLoading] = useState(false);
+  const [futureStarsError, setFutureStarsError] = useState("");
+
   useEffect(() => {
+    setFavorites(getFavorites());
+
     const loadRecommendations = async () => {
       try {
         setRecommendationsLoading(true);
@@ -93,6 +126,49 @@ export default function Home() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadFutureStars = async () => {
+    try {
+      setFutureStarsLoading(true);
+      setFutureStarsError("");
+
+      const res = await fetch("/api/future-stars", {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("future stars api failed");
+      }
+
+      const data = await res.json();
+      setFutureStars(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setFutureStarsError("テンバガー候補の取得に失敗しました。");
+    } finally {
+      setFutureStarsLoading(false);
+    }
+  };
+
+  const analyzeByCode = (code: string, name: string) => {
+    setTicker(code);
+    setQuery(`${code} ${name}`);
+    analyze(code);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleToggleFavorite = () => {
+    if (!result) return;
+
+    const code = result.ticker;
+    const name = result.companyName;
+
+    if (isFavorite(code, favorites)) {
+      setFavorites(removeFavorite(code));
+    } else {
+      setFavorites(addFavorite({ code, name }));
     }
   };
 
@@ -194,9 +270,48 @@ export default function Home() {
           {loading ? "分析中..." : "分析開始"}
         </button>
 
+        {favorites.length > 0 && (
+          <div className="mt-6 p-4 border border-yellow-700 bg-yellow-950 rounded">
+            <h2 className="font-bold text-lg mb-3 text-white">⭐ お気に入り</h2>
+            <div className="space-y-2">
+              {favorites.map((stock) => (
+                <div
+                  key={stock.code}
+                  className="flex items-center justify-between gap-2 border border-yellow-800 bg-slate-900 rounded p-2"
+                >
+                  <button
+                    onClick={() => analyzeByCode(stock.code, stock.name)}
+                    className="text-left flex-1"
+                  >
+                    <div className="font-bold text-white">
+                      {stock.code} {stock.name}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setFavorites(removeFavorite(stock.code))}
+                    className="text-xs text-red-300 border border-red-800 rounded px-2 py-1"
+                  >
+                    削除
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {result && (
           <div className="mt-6 p-4 border border-slate-700 bg-slate-900 rounded space-y-3">
-            <h2 className="text-xl font-bold text-white">{result.companyName}</h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold text-white">{result.companyName}</h2>
+
+              <button
+                onClick={handleToggleFavorite}
+                className="shrink-0 rounded border border-yellow-600 px-3 py-1 text-sm text-yellow-200"
+              >
+                {isFavorite(result.ticker, favorites) ? "★ 登録済" : "☆ お気に入り"}
+              </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-2 text-sm text-slate-100">
               <p>コード: {result.symbol}</p>
@@ -228,6 +343,16 @@ export default function Home() {
                 {renderScoreRow("割安性", result.breakdown.valuation)}
                 {renderScoreRow("配当", result.breakdown.dividend)}
                 {renderScoreRow("需給", result.breakdown.momentum)}
+                {result.breakdown.profitability !== undefined &&
+                  renderScoreRow("収益性", result.breakdown.profitability)}
+                {result.breakdown.growth !== undefined &&
+                  renderScoreRow("成長性", result.breakdown.growth)}
+                {result.breakdown.safety !== undefined &&
+                  renderScoreRow("財務健全性", result.breakdown.safety)}
+                {result.breakdown.overheat !== undefined &&
+                  renderScoreRow("過熱感", result.breakdown.overheat)}
+                {result.breakdown.sixMonthSuitability !== undefined &&
+                  renderScoreRow("半年保有適性", result.breakdown.sixMonthSuitability)}
                 {renderScoreRow("テーマ性", result.breakdown.theme)}
               </div>
             )}
@@ -282,12 +407,7 @@ export default function Home() {
             {recommendations.map((stock, index) => (
               <button
                 key={stock.code}
-                onClick={() => {
-                  setTicker(stock.code);
-                  setQuery(`${stock.code} ${stock.name}`);
-                  analyze(stock.code);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
+                onClick={() => analyzeByCode(stock.code, stock.name)}
                 className="w-full text-left border border-slate-700 rounded p-3 bg-slate-800 hover:bg-slate-700"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -306,6 +426,74 @@ export default function Home() {
                     <div className="text-xs text-slate-300">AI候補</div>
                   </div>
                 </div>
+                <div className="text-xs text-emerald-300 mt-2">
+                  {stock.themes.join(" / ")}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 p-4 border border-purple-700 bg-purple-950 rounded">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 className="font-bold text-lg text-white">テンバガー候補</h2>
+              <p className="text-xs text-purple-100 mt-1">
+                成長性・テーマ性・収益性から将来有望候補を抽出します。
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={loadFutureStars}
+            disabled={futureStarsLoading}
+            className="bg-purple-600 hover:bg-purple-500 text-white font-bold w-full p-3 rounded disabled:opacity-50"
+          >
+            {futureStarsLoading ? "探索中..." : "テンバガー候補を探す"}
+          </button>
+
+          {futureStarsError && (
+            <p className="text-sm text-red-200 mt-3">{futureStarsError}</p>
+          )}
+
+          <div className="space-y-3 mt-4">
+            {futureStars.map((stock, index) => (
+              <button
+                key={stock.code}
+                onClick={() => analyzeByCode(stock.code, stock.name)}
+                className="w-full text-left border border-purple-700 rounded p-3 bg-slate-900 hover:bg-slate-800"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-white">
+                      {index + 1}位 {stock.name}
+                    </div>
+                    <div className="text-xs text-slate-300 mt-1">
+                      {stock.code}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-purple-200">
+                      {stock.score}点
+                    </div>
+                    <div className="text-xs text-purple-200">未来候補</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-200 mt-3">
+                  <div>成長性: {stock.growth}点</div>
+                  <div>テーマ: {stock.theme}点</div>
+                  <div>収益性: {stock.profitability}点</div>
+                  <div>安全性: {stock.safety}点</div>
+                </div>
+
+                <ul className="text-xs text-purple-100 mt-3 leading-5">
+                  {stock.reasons.map((reason, i) => (
+                    <li key={i}>• {reason}</li>
+                  ))}
+                </ul>
+
                 <div className="text-xs text-emerald-300 mt-2">
                   {stock.themes.join(" / ")}
                 </div>
