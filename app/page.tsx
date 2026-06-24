@@ -212,9 +212,12 @@ export default function Home() {
           銘柄検索、AI総評、リスク、今日の推奨銘柄をまとめて確認できます。
         </p>
 
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col gap-2">
           <Link href="/glossary" className="text-emerald-300 underline">
             📚 用語辞典を見る
+          </Link>
+          <Link href="/historical-backtest" className="text-purple-300 underline">
+            📈 過去データバックテストを見る
           </Link>
         </div>
 
