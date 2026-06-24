@@ -47,6 +47,9 @@ type Recommendation = {
   name: string;
   score: number;
   themes: string[];
+  reasons?: string[];
+  baseScore?: number;
+  themeScore?: number;
 };
 
 type FutureStar = {
@@ -63,8 +66,9 @@ type FutureStar = {
 
 export default function Home() {
   const [ticker, setTicker] = useState("5801");
-  const [query, setQuery] = useState("5801 古河電気工業");
-  const [suggestions, setSuggestions] = useState(searchStocks(""));
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ReturnType<typeof searchStocks>>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -155,6 +159,8 @@ export default function Home() {
   const analyzeByCode = (code: string, name: string) => {
     setTicker(code);
     setQuery(`${code} ${name}`);
+    setSuggestions([]);
+    setIsSearchFocused(false);
     analyze(code);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -226,9 +232,20 @@ export default function Home() {
             type="text"
             placeholder="コード・会社名・テーマで検索"
             value={query}
+            onFocus={() => {
+              setIsSearchFocused(true);
+              setSuggestions(searchStocks(query));
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                setIsSearchFocused(false);
+                setSuggestions([]);
+              }, 150);
+            }}
             onChange={(e) => {
               const value = e.target.value;
               setQuery(value);
+              setIsSearchFocused(true);
               setSuggestions(searchStocks(value));
 
               if (/^\d{4}$/.test(value)) {
@@ -238,7 +255,7 @@ export default function Home() {
             className="border border-slate-600 bg-slate-900 text-white placeholder:text-slate-400 p-3 w-full rounded"
           />
 
-          {query && suggestions.length > 0 && (
+          {isSearchFocused && suggestions.length > 0 && (
             <div className="absolute z-10 w-full border border-slate-700 rounded mt-1 bg-slate-900 max-h-72 overflow-y-auto shadow-lg">
               {suggestions.map((stock) => (
                 <button
@@ -247,6 +264,7 @@ export default function Home() {
                     setTicker(stock.code);
                     setQuery(`${stock.code} ${stock.name}`);
                     setSuggestions([]);
+                    setIsSearchFocused(false);
                   }}
                   className="block w-full text-left p-3 hover:bg-slate-800 border-b border-slate-800 last:border-b-0"
                 >
@@ -403,7 +421,7 @@ export default function Home() {
           )}
 
           {!recommendationsLoading && recommendations.length === 0 && !recommendationsError && (
-            <p className="text-sm text-slate-300">推奨銘柄が見つかりませんでした。</p>
+            <p className="text-sm text-slate-300">本日は75点以上の推奨銘柄はありません。</p>
           )}
 
           <div className="space-y-3">
@@ -432,6 +450,13 @@ export default function Home() {
                 <div className="text-xs text-emerald-300 mt-2">
                   {stock.themes.join(" / ")}
                 </div>
+                {stock.reasons && stock.reasons.length > 0 && (
+                  <ul className="text-xs text-slate-200 mt-2 leading-5">
+                    {stock.reasons.map((reason, i) => (
+                      <li key={i}>• {reason}</li>
+                    ))}
+                  </ul>
+                )}
               </button>
             ))}
           </div>
