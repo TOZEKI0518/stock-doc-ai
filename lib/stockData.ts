@@ -77,7 +77,7 @@ export async function getStockData(
 ) {
   const { includeAdvanced = true, includeHistory = true } = options;
 
-  const cleanTicker = ticker.replace(".T", "").trim();
+  const cleanTicker = ticker.replace(/\.T$/i, "").trim().toUpperCase();
   const symbol = `${cleanTicker}.T`;
 
   const quote = await yahooFinance.quote(symbol);

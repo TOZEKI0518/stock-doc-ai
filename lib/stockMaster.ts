@@ -23,19 +23,13 @@ function normalizeText(value: string) {
 export function searchStocks(query: string) {
   const q = normalizeText(query);
 
-  if (!q) return STOCK_MASTER.slice(0, 25);
+  if (!q) return [];
 
   const keywords = q.split(/\s+/).filter(Boolean);
 
   return STOCK_MASTER.filter((stock) => {
     const target = normalizeText(
-      [
-        stock.code,
-        stock.name,
-        stock.market,
-        stock.sector,
-        ...stock.themes,
-      ].join(" ")
+      [stock.code, stock.name, stock.market, stock.sector, ...stock.themes].join(" ")
     );
 
     return keywords.every((keyword) => target.includes(keyword));
@@ -43,6 +37,6 @@ export function searchStocks(query: string) {
 }
 
 export function findStockByCode(code: string) {
-  const cleanCode = normalizeText(code).replace(".t", "");
-  return STOCK_MASTER.find((stock) => stock.code === cleanCode);
+  const cleanCode = normalizeText(code).replace(".t", "").toUpperCase();
+  return STOCK_MASTER.find((stock) => stock.code.toUpperCase() === cleanCode);
 }
