@@ -10,6 +10,7 @@ type Recommendation = {
   score: number;
   baseScore: number;
   themeScore: number;
+  rating: "Strong Buy" | "Buy";
   reasons: string[];
 };
 
@@ -39,12 +40,16 @@ const IMPORTANT_THEMES = [
 function buildReasons(themes: string[], baseScore: number, themeScore: number) {
   const reasons: string[] = [];
 
-  if (themeScore >= 85) {
-    reasons.push("注目テーマ性が高い");
+  if (baseScore >= 85) {
+    reasons.push("財務・株価指標の総合評価が高い");
+  } else if (baseScore >= 80) {
+    reasons.push("財務・株価指標がBuy水準");
   }
 
-  if (baseScore >= 75) {
-    reasons.push("財務・株価指標の総合評価が高い");
+  if (themeScore >= 85) {
+    reasons.push("注目テーマ性が高い");
+  } else if (themeScore >= 75) {
+    reasons.push("テーマ性が良好");
   }
 
   const importantThemes = themes.filter((theme) =>
@@ -64,9 +69,13 @@ function hasImportantTheme(themes: string[]) {
   return themes.some((theme) => IMPORTANT_THEMES.includes(theme));
 }
 
+function getRecommendationRating(score: number): "Strong Buy" | "Buy" {
+  return score >= 90 ? "Strong Buy" : "Buy";
+}
+
 export async function getTopRecommendations() {
-  // 低スコア銘柄が無理に表示されないよう、注目テーマ銘柄を中心に全マスターから抽出します。
-  // ただしVercelのタイムアウト回避のため、候補は最大120件に絞ります。
+  // 「今日の推奨銘柄」は、分析画面でHoldに見えにくいように、
+  // 財務・株価指標のbaseScoreも重視します。
   const priorityTargets = STOCK_MASTER.filter((stock) =>
     hasImportantTheme(stock.themes)
   );
@@ -75,14 +84,17 @@ export async function getTopRecommendations() {
     (stock) => !hasImportantTheme(stock.themes)
   );
 
-  const targets = [...priorityTargets, ...fallbackTargets].slice(0, 120);
+  // Vercelのタイムアウト回避のため、まずは重要テーマ銘柄を中心に最大100件。
+  const targets = [...priorityTargets, ...fallbackTargets].slice(0, 100);
 
   const results: Recommendation[] = [];
 
   for (const stock of targets) {
     try {
       const data = await getStockData(stock.code, {
-        includeAdvanced: false,
+        // 推奨銘柄は精度重視。ROE、成長率、負債比率なども見る。
+        includeAdvanced: true,
+        // 履歴取得は重いので今日の推奨ではOFF。
         includeHistory: false,
       });
 
@@ -92,14 +104,20 @@ export async function getTopRecommendations() {
         dividendYield: data.dividendYield,
         changePercent: data.changePercent,
         volume: data.volume,
+        roe: data.roe,
+        profitMargin: data.profitMargin,
+        revenueGrowth: data.revenueGrowth,
+        earningsGrowth: data.earningsGrowth,
+        debtToEquity: data.debtToEquity,
+        freeCashflow: data.freeCashflow,
+        operatingCashflow: data.operatingCashflow,
       });
 
       const themeScore = calculateThemeScore(stock.themes);
 
-      // 今日の推奨銘柄は「テーマ性」をやや強めに評価します。
-      // 財務データの詳細取得を省いているため、baseScoreだけだと良いテーマ株が低く出やすいためです。
+      // テーマだけで高評価になりすぎないよう、baseScoreを強めにする。
       const finalScore = Math.round(
-        detailedScore.total * 0.55 + themeScore * 0.45
+        detailedScore.total * 0.75 + themeScore * 0.25
       );
 
       results.push({
@@ -109,6 +127,7 @@ export async function getTopRecommendations() {
         score: finalScore,
         baseScore: detailedScore.total,
         themeScore,
+        rating: getRecommendationRating(finalScore),
         reasons: buildReasons(stock.themes, detailedScore.total, themeScore),
       });
     } catch (error) {
@@ -118,7 +137,17 @@ export async function getTopRecommendations() {
   }
 
   return results
-    .filter((stock) => stock.score >= 75 && stock.themeScore >= 75)
-    .sort((a, b) => b.score - a.score)
+    // ここが重要。Hold水準を「今日の推奨銘柄」に出さない。
+    .filter(
+      (stock) =>
+        stock.score >= 80 &&
+        stock.baseScore >= 75 &&
+        stock.themeScore >= 70
+    )
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.baseScore !== a.baseScore) return b.baseScore - a.baseScore;
+      return b.themeScore - a.themeScore;
+    })
     .slice(0, 5);
 }
