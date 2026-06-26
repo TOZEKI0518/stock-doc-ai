@@ -47,6 +47,7 @@ type Recommendation = {
   name: string;
   score: number;
   themes: string[];
+  reasons?: string[];
 };
 
 type FutureStar = {
@@ -207,18 +208,50 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-md mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-2">株ドックAI</h1>
-        <p className="text-sm text-slate-300 mb-5">
-          銘柄検索、AI総評、リスク、今日の推奨銘柄をまとめて確認できます。
-        </p>
+      <div className="max-w-md mx-auto p-5 pb-10">
+        <div className="mb-5">
+          <p className="text-xs font-bold text-emerald-300 mb-1">StockDoc AI Pro</p>
+          <h1 className="text-3xl font-bold mb-2">株ドックAI</h1>
+          <p className="text-sm text-slate-300">
+            銘柄分析、推奨銘柄、テンバガー候補、AI学習レポートをスマホで確認できます。
+          </p>
+        </div>
 
-        <div className="mb-4 flex flex-col gap-2">
-          <Link href="/glossary" className="text-emerald-300 underline">
-            📚 用語辞典を見る
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <Link
+            href="/learning"
+            className="rounded-2xl border border-emerald-700 bg-emerald-950 p-4"
+          >
+            <div className="text-2xl mb-1">📈</div>
+            <div className="font-bold text-white">AI学習</div>
+            <div className="text-xs text-emerald-100 mt-1">勝率・成績確認</div>
           </Link>
-          <Link href="/historical-backtest" className="text-purple-300 underline">
-            📈 過去データバックテストを見る
+
+          <Link
+            href="/historical-backtest"
+            className="rounded-2xl border border-purple-700 bg-purple-950 p-4"
+          >
+            <div className="text-2xl mb-1">🧪</div>
+            <div className="font-bold text-white">バックテスト</div>
+            <div className="text-xs text-purple-100 mt-1">過去データ検証</div>
+          </Link>
+
+          <Link
+            href="/dashboard"
+            className="rounded-2xl border border-blue-700 bg-blue-950 p-4"
+          >
+            <div className="text-2xl mb-1">📊</div>
+            <div className="font-bold text-white">ダッシュボード</div>
+            <div className="text-xs text-blue-100 mt-1">メニュー一覧</div>
+          </Link>
+
+          <Link
+            href="/glossary"
+            className="rounded-2xl border border-slate-700 bg-slate-900 p-4"
+          >
+            <div className="text-2xl mb-1">📚</div>
+            <div className="font-bold text-white">用語辞典</div>
+            <div className="text-xs text-slate-300 mt-1">指標の意味</div>
           </Link>
         </div>
 
@@ -227,19 +260,22 @@ export default function Home() {
             type="text"
             placeholder="コード・会社名・テーマで検索"
             value={query}
+            onFocus={() => {
+              if (query.trim()) setSuggestions(searchStocks(query));
+            }}
             onChange={(e) => {
               const value = e.target.value;
               setQuery(value);
-              setSuggestions(searchStocks(value));
+              setSuggestions(value.trim() ? searchStocks(value) : []);
 
-              if (/^[0-9A-Za-z]{4}$/.test(value.trim())) {
-                setTicker(value.trim().toUpperCase());
+              if (/^[0-9A-Za-z]{4}$/.test(value)) {
+                setTicker(value.toUpperCase());
               }
             }}
             className="border border-slate-600 bg-slate-900 text-white placeholder:text-slate-400 p-3 w-full rounded"
           />
 
-          {query && suggestions.length > 0 && (
+          {suggestions.length > 0 && (
             <div className="absolute z-10 w-full border border-slate-700 rounded mt-1 bg-slate-900 max-h-72 overflow-y-auto shadow-lg">
               {suggestions.map((stock) => (
                 <button
@@ -404,7 +440,9 @@ export default function Home() {
           )}
 
           {!recommendationsLoading && recommendations.length === 0 && !recommendationsError && (
-            <p className="text-sm text-slate-300">推奨銘柄が見つかりませんでした。</p>
+            <p className="text-sm text-slate-300">
+              本日はBuy以上の推奨銘柄が見つかりませんでした。
+            </p>
           )}
 
           <div className="space-y-3">
@@ -427,7 +465,7 @@ export default function Home() {
                     <div className="text-lg font-bold text-emerald-300">
                       {stock.score}点
                     </div>
-                    <div className="text-xs text-slate-300">AI候補</div>
+                    <div className="text-xs text-slate-300">Buy候補</div>
                   </div>
                 </div>
                 <div className="text-xs text-emerald-300 mt-2">
@@ -439,13 +477,11 @@ export default function Home() {
         </div>
 
         <div className="mt-8 p-4 border border-purple-700 bg-purple-950 rounded">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <h2 className="font-bold text-lg text-white">テンバガー候補</h2>
-              <p className="text-xs text-purple-100 mt-1">
-                成長性・テーマ性・収益性から将来有望候補を抽出します。
-              </p>
-            </div>
+          <div className="mb-3">
+            <h2 className="font-bold text-lg text-white">テンバガー候補</h2>
+            <p className="text-xs text-purple-100 mt-1">
+              成長性・テーマ性・収益性から将来有望候補を抽出します。
+            </p>
           </div>
 
           <button
