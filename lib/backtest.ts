@@ -20,72 +20,110 @@ type BacktestHolding = {
   returnPct: number;
 };
 
-function toDateMonthsAgo(months: number) {
+type ChartPriceRow = {
+  date: Date;
+  close: number;
+};
+
+function toDateMonthsAgo(months: number): Date {
   const date = new Date();
   date.setMonth(date.getMonth() - months);
   return date;
 }
 
 function toNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
   return null;
 }
 
-function calcReturnPct(startPrice: number | null, endPrice: number | null) {
-  if (!startPrice || !endPrice || startPrice <= 0) return null;
+function calcReturnPct(
+  startPrice: number | null,
+  endPrice: number | null
+): number | null {
+  if (
+    startPrice === null ||
+    endPrice === null ||
+    startPrice <= 0
+  ) {
+    return null;
+  }
+
   return ((endPrice - startPrice) / startPrice) * 100;
 }
 
-function average(values: number[]) {
+function average(values: number[]): number {
   if (values.length === 0) return 0;
+
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function median(values: number[]) {
+function median(values: number[]): number {
   if (values.length === 0) return 0;
+
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
+
   if (sorted.length % 2 === 0) {
     return (sorted[mid - 1] + sorted[mid]) / 2;
   }
+
   return sorted[mid];
 }
 
-async function getReturnForPeriod(code: string, months: number) {
+async function getReturnForPeriod(
+  code: string,
+  months: number
+): Promise<{
+  startPrice: number;
+  endPrice: number;
+  returnPct: number;
+} | null> {
   const symbol = `${code}.T`;
   const period1 = toDateMonthsAgo(months + 1);
   const period2 = new Date();
 
-  const history = await yahooFinance.historical(symbol, {
+  const chart = await yahooFinance.chart(symbol, {
     period1,
     period2,
     interval: "1d",
+    return: "array",
   });
 
-  const rows = history
-    .filter((item) => typeof item.close === "number")
+  const rows: ChartPriceRow[] = chart.quotes
+    .filter(
+      (item): item is typeof item & { date: Date; close: number } =>
+        item.date instanceof Date &&
+        typeof item.close === "number" &&
+        Number.isFinite(item.close)
+    )
+    .map((item) => ({
+      date: item.date,
+      close: item.close,
+    }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   if (rows.length < 2) return null;
 
   const targetStart = toDateMonthsAgo(months).getTime();
 
-  let startRow = rows[0];
-  for (const row of rows) {
-    if (row.date.getTime() >= targetStart) {
-      startRow = row;
-      break;
-    }
-  }
-
+  const startRow =
+    rows.find((row) => row.date.getTime() >= targetStart) ?? rows[0];
   const endRow = rows.at(-1);
+
   if (!endRow) return null;
 
   const startPrice = toNumber(startRow.close);
   const endPrice = toNumber(endRow.close);
   const returnPct = calcReturnPct(startPrice, endPrice);
 
-  if (startPrice === null || endPrice === null || returnPct === null) {
+  if (
+    startPrice === null ||
+    endPrice === null ||
+    returnPct === null
+  ) {
     return null;
   }
 
@@ -106,7 +144,6 @@ export async function runSimpleBacktest(options?: {
   const topN = options?.topN ?? 10;
 
   const targets = STOCK_MASTER.slice(0, universeSize);
-
   const holdings: BacktestHolding[] = [];
 
   for (const stock of targets) {
@@ -125,8 +162,9 @@ export async function runSimpleBacktest(options?: {
       });
 
       const themeScore = calculateThemeScore(stock.themes);
-
-      const score = Math.round(detailedScore.total * 0.75 + themeScore * 0.25);
+      const score = Math.round(
+        detailedScore.total * 0.75 + themeScore * 0.25
+      );
 
       const periodReturn = await getReturnForPeriod(stock.code, months);
 
@@ -159,7 +197,8 @@ export async function runSimpleBacktest(options?: {
   const selectedWinRate =
     selected.length === 0
       ? 0
-      : (selected.filter((item) => item.returnPct > 0).length / selected.length) *
+      : (selected.filter((item) => item.returnPct > 0).length /
+          selected.length) *
         100;
 
   const best = [...holdings]

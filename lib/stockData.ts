@@ -9,39 +9,61 @@ type StockDataOptions = {
   includeHistory?: boolean;
 };
 
+type TechnicalHistory = {
+  ma25: number | null;
+  ma75: number | null;
+  volumeAvg20: number | null;
+  ma25Gap: number | null;
+  ma75Gap: number | null;
+  sixMonthReturn: number | null;
+};
+
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return null;
 }
 
-function average(values: number[]) {
+function average(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function calcChangePercent(current: number | null, past: number | null) {
-  if (!current || !past || past === 0) return null;
+function calcChangePercent(
+  current: number | null,
+  past: number | null
+): number | null {
+  if (current === null || past === null || past === 0) return null;
   return ((current - past) / past) * 100;
 }
 
-async function getHistory(symbol: string) {
+async function getHistory(symbol: string): Promise<TechnicalHistory> {
   const period1 = new Date();
   period1.setDate(period1.getDate() - 260);
 
   try {
-    const history = await yahooFinance.historical(symbol, {
+    const chart = await yahooFinance.chart(symbol, {
       period1,
+      period2: new Date(),
       interval: "1d",
+      return: "array",
     });
 
-    const sorted = history
-      .filter((item) => typeof item.close === "number")
+    const sorted = chart.quotes
+      .filter(
+        (item) =>
+          item.date instanceof Date &&
+          typeof item.close === "number" &&
+          Number.isFinite(item.close)
+      )
       .sort((a, b) => a.date.getTime() - b.date.getTime());
 
     const closes = sorted.map((item) => item.close as number);
     const volumes = sorted
       .map((item) => item.volume)
-      .filter((value): value is number => typeof value === "number");
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && Number.isFinite(value)
+      );
 
     const latestClose = closes.at(-1) ?? null;
     const close25 = average(closes.slice(-25));
@@ -58,7 +80,7 @@ async function getHistory(symbol: string) {
       sixMonthReturn: calcChangePercent(latestClose, close120),
     };
   } catch (error) {
-    console.error(`Historical data failed: ${symbol}`, error);
+    console.error(`Chart data failed: ${symbol}`, error);
 
     return {
       ma25: null,
@@ -118,7 +140,9 @@ export async function getStockData(
     marketCap:
       toNumber(quote.marketCap) ?? toNumber(advanced?.summaryDetail?.marketCap),
     volume: toNumber(quote.regularMarketVolume),
-    per: toNumber(quote.trailingPE) ?? toNumber(advanced?.summaryDetail?.trailingPE),
+    per:
+      toNumber(quote.trailingPE) ??
+      toNumber(advanced?.summaryDetail?.trailingPE),
     pbr:
       toNumber((quote as any).priceToBook) ??
       toNumber(advanced?.defaultKeyStatistics?.priceToBook),
