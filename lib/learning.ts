@@ -209,19 +209,43 @@ function buildInsights(
     : ["判断に十分な件数がまだありません。日次スナップショットの蓄積を続けてください。"];
 }
 
+async function fetchAllSnapshots(): Promise<SnapshotRow[]> {
+  const pageSize = 1000;
+  const allRows: SnapshotRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + pageSize - 1;
+
+    const { data, error } = await supabaseAdmin
+      .from("snapshots")
+      .select(
+        "snapshot_date, code, name, price, total_score, recommendation, theme_score, fundamental_score, technical_score"
+      )
+      .order("snapshot_date", { ascending: true })
+      .order("code", { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const page = (data ?? []) as SnapshotRow[];
+    allRows.push(...page);
+
+    if (page.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
 export async function getLearningSummary(days = 30) {
   const safeDays = [7, 30, 90, 180].includes(days) ? days : 30;
-
-  const { data, error } = await supabaseAdmin
-    .from("snapshots")
-    .select(
-      "snapshot_date, code, name, price, total_score, recommendation, theme_score, fundamental_score, technical_score"
-    )
-    .order("snapshot_date", { ascending: true });
-
-  if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as SnapshotRow[];
+  const rows = await fetchAllSnapshots();
   const validRows = rows.filter(
     (row) => row.snapshot_date && row.code && toNumber(row.price) !== null
   );
