@@ -237,6 +237,15 @@ export default function Home() {
           </Link>
 
           <Link
+            href="/strategy-lab"
+            className="rounded-2xl border border-cyan-700 bg-cyan-950 p-4"
+          >
+            <div className="text-2xl mb-1">🧭</div>
+            <div className="font-bold text-white">Strategy Lab</div>
+            <div className="text-xs text-cyan-100 mt-1">戦略比較・検証</div>
+          </Link>
+
+          <Link
             href="/dashboard"
             className="rounded-2xl border border-blue-700 bg-blue-950 p-4"
           >
