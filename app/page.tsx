@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import MarketRegimeCard from "@/components/MarketRegimeCard";
 import { searchStocks } from "@/lib/stockMaster";
 import {
   addFavorite,
@@ -216,6 +217,8 @@ export default function Home() {
             銘柄分析、推奨銘柄、テンバガー候補、AI学習レポートをスマホで確認できます。
           </p>
         </div>
+
+        <MarketRegimeCard />
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <Link

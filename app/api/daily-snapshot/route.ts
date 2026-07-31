@@ -4,6 +4,7 @@ import { calculateDetailedScore, getRating } from "@/lib/scoring";
 import { STOCK_MASTER } from "@/lib/stockMaster";
 import { calculateThemeScore } from "@/lib/themeScore";
 import { supabaseAdmin } from "@/lib/supabase";
+import { calculateMarketRegime, getMarketIndicators, saveMarketSnapshot } from "@/lib/market";
 
 const SNAPSHOT_LIMIT = Number(process.env.SNAPSHOT_LIMIT ?? 120);
 const SNAPSHOT_SECRET = process.env.SNAPSHOT_SECRET;
@@ -152,12 +153,30 @@ export async function GET(req: Request) {
     }
   }
 
+  let marketSnapshot: { marketDate: string; score: number; regime: string } | null = null;
+  let marketSnapshotError: string | null = null;
+
+  try {
+    const { indicators, warnings } = await getMarketIndicators();
+    if (indicators.length > 0) {
+      const marketResult = calculateMarketRegime(indicators, warnings);
+      marketSnapshot = await saveMarketSnapshot(marketResult);
+    } else {
+      marketSnapshotError = `No market indicators available: ${warnings.join(" / ")}`;
+    }
+  } catch (error) {
+    console.error("Daily market snapshot failed", error);
+    marketSnapshotError = error instanceof Error ? error.message : String(error);
+  }
+
   return NextResponse.json({
     ok: true,
     snapshotDate,
     targetCount: targets.length,
     savedSnapshots: snapshots.length,
     savedRecommendations: recommendations.length,
+    marketSnapshot,
+    marketSnapshotError,
     errors,
   });
 }
