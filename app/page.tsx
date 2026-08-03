@@ -220,6 +220,13 @@ export default function Home() {
 
         <MarketRegimeCard />
 
+        <Link href="/etf" className="mb-5 block rounded-2xl border border-emerald-800 bg-emerald-950/40 p-4 transition hover:border-emerald-500">
+          <div className="flex items-center justify-between">
+            <div><div className="text-xs font-bold text-emerald-300">NEW · ETF ENGINE</div><div className="mt-1 text-lg font-bold">日本株ETFランキング</div><div className="mt-1 text-xs text-slate-400">インデックス・高配当・半導体・業種別ETFを比較</div></div>
+            <div className="text-2xl">→</div>
+          </div>
+        </Link>
+
         <div className="grid grid-cols-2 gap-3 mb-5">
           <Link
             href="/learning"
