@@ -21,7 +21,7 @@ export default function EtfPage() {
       .then(async (r) => { if (!r.ok) throw new Error("ETF API failed"); return r.json(); }).then(setData).catch(() => setError("ETFデータを取得できませんでした。"));
   }, [category]);
   return <main className="min-h-screen bg-slate-950 text-white"><div className="mx-auto max-w-6xl p-5 pb-12">
-    <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-emerald-300">StockDoc AI Pro</p><h1 className="text-3xl font-bold">日本株ETFランキング</h1><p className="mt-1 text-sm text-slate-400">現物の国内株式ETFを専用ロジックで分析</p></div><Link href="/" className="rounded-xl border border-slate-700 px-3 py-2 text-sm">← ホーム</Link></div>
+    <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-emerald-300">StockDoc AI Pro</p><h1 className="text-3xl font-bold">日本株ETFランキング</h1><p className="mt-1 text-sm text-slate-400">現物の国内株式ETFを専用ロジックで分析</p><Link href="/etf-learning" className="mt-2 inline-block text-sm font-bold text-emerald-300 underline">ETF Learning Report →</Link></div><Link href="/" className="rounded-xl border border-slate-700 px-3 py-2 text-sm">← ホーム</Link></div>
     <div className="mb-5 flex gap-2 overflow-x-auto pb-2">{categories.map((item) => <button key={item.value} onClick={() => setCategory(item.value)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${category === item.value ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-300"}`}>{item.label}</button>)}</div>
     {error && <div className="rounded-2xl border border-red-800 bg-red-950 p-4">{error}</div>}
     {!data && !error && <div className="rounded-2xl bg-slate-900 p-6">ETFを分析中...</div>}
