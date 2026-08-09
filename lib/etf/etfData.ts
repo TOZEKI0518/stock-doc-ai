@@ -1,4 +1,4 @@
-import YahooFinance from "yahoo-finance2";
+﻿import YahooFinance from "yahoo-finance2";
 import { annualizedVolatility, average, pct, round } from "./indicators";
 import type { EtfMasterItem, EtfPriceMetrics } from "./etfTypes";
 
@@ -29,6 +29,7 @@ export async function fetchEtfMetrics(item: EtfMasterItem): Promise<EtfPriceMetr
     price: round(latest.close, 4),
     previousClose: closes.at(-2) ?? null,
     changePercent1d: pct(latest.close, closes.at(-2) ?? null),
+    return7d: pct(latest.close, closes.at(-8) ?? null),
     return20d: pct(latest.close, closes.at(-21) ?? null),
     return60d: pct(latest.close, closes.at(-61) ?? null),
     return120d: pct(latest.close, closes.at(-121) ?? null),
@@ -44,3 +45,4 @@ export async function fetchEtfMetrics(item: EtfMasterItem): Promise<EtfPriceMetr
     sampleSize: rows.length,
   };
 }
+

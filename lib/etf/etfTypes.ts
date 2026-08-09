@@ -1,4 +1,4 @@
-import type { MarketRegime } from "@/lib/market";
+﻿import type { MarketRegime } from "@/lib/market";
 
 export type EtfCategory = "CORE" | "GROWTH" | "TECH" | "DIVIDEND" | "SECTOR" | "DEFENSIVE";
 export type EtfSignal = "ACCUMULATE" | "HOLD" | "WATCH" | "REDUCE" | "EXIT";
@@ -22,6 +22,7 @@ export type EtfPriceMetrics = {
   price: number;
   previousClose: number | null;
   changePercent1d: number | null;
+  return7d: number | null;
   return20d: number | null;
   return60d: number | null;
   return120d: number | null;
@@ -57,3 +58,4 @@ export type EtfAnalysis = {
   warnings: string[];
   scoreVersion: string;
 };
+
