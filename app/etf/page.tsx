@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,6 +29,14 @@ function signed(value: number | null) {
     : `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
+function shortSignalLabel(signal: string) {
+  return signal === "SHORT_BUY" ? "短期BUY" : signal === "READY" ? "準備" : signal === "OVERHEATED" ? "過熱" : signal === "AVOID" ? "回避" : "待機";
+}
+
+function shortSignalClass(signal: string) {
+  return signal === "SHORT_BUY" ? "text-emerald-300" : signal === "READY" ? "text-cyan-300" : signal === "OVERHEATED" ? "text-orange-300" : signal === "AVOID" ? "text-red-300" : "text-amber-300";
+}
+
 function signalClass(signal: string) {
   return signal === "ACCUMULATE"
     ? "text-emerald-300"
@@ -45,6 +53,7 @@ export default function EtfPage() {
 
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState("");
+  const [rankingMode, setRankingMode] = useState<"SHORT" | "MID">("SHORT");
 
   useEffect(() => {
     setData(null);
@@ -102,7 +111,19 @@ export default function EtfPage() {
             >
               ETF Learning Report →
             </Link>
+            <Link
+              href="/etf-guide"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-300 transition hover:bg-cyan-500/20"
+            >
+              ？ スコアの見方
+            </Link>
           </div>
+        </div>
+
+        {/* Ranking mode */}
+        <div className="mb-4 flex gap-2">
+          <button onClick={() => setRankingMode("SHORT")} className={`rounded-lg px-4 py-2 text-sm font-bold ${rankingMode === "SHORT" ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-300"}`}>短期Score順</button>
+          <button onClick={() => setRankingMode("MID")} className={`rounded-lg px-4 py-2 text-sm font-bold ${rankingMode === "MID" ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-300"}`}>中期Score順</button>
         </div>
 
         {/* Category buttons */}
@@ -173,7 +194,7 @@ export default function EtfPage() {
 
             {/* ETF Ranking */}
             <div className="space-y-3">
-              {data.analyses.map((item, index) => (
+              {[...data.analyses].sort((a, b) => rankingMode === "SHORT" ? b.shortTermScore - a.shortTermScore : b.score - a.score).map((item, index) => (
                 <div
                   key={item.master.symbol}
                   className="rounded-xl border border-slate-800 bg-slate-900 p-4"
@@ -201,24 +222,17 @@ export default function EtfPage() {
                       </div>
                     </div>
 
-                    {/* Score */}
-                    <div className="flex items-center gap-5">
+                    {/* Scores */}
+                    <div className="flex items-center gap-6">
                       <div>
-                        <p className="text-xs text-slate-500">
-                          Score
-                        </p>
-
-                        <p className="text-2xl font-bold">
-                          {item.score.toFixed(1)}
-                        </p>
+                        <p className="text-xs text-slate-500">中期Score</p>
+                        <p className="text-2xl font-bold">{item.score.toFixed(1)}</p>
+                        <p className={`text-xs font-bold ${signalClass(item.signal)}`}>{item.signal}</p>
                       </div>
-
-                      <div
-                        className={`text-xs font-bold ${signalClass(
-                          item.signal
-                        )}`}
-                      >
-                        {item.signal}
+                      <div className="border-l border-slate-700 pl-6">
+                        <p className="text-xs text-slate-500">短期Score</p>
+                        <p className="text-2xl font-bold">{item.shortTermScore.toFixed(1)}</p>
+                        <p className={`text-xs font-bold ${shortSignalClass(item.shortTermSignal)}`}>{shortSignalLabel(item.shortTermSignal)}</p>
                       </div>
                     </div>
 
@@ -280,6 +294,11 @@ export default function EtfPage() {
                   {item.reasons.length > 0 && (
                     <p className="mt-3 border-t border-slate-800 pt-3 text-xs text-slate-500">
                       {item.reasons.join(" / ")}
+                    </p>
+                  )}
+                  {item.shortTermReasons.length > 0 && (
+                    <p className="mt-2 text-xs text-cyan-200/70">
+                      短期: {item.shortTermReasons.join(" / ")}
                     </p>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import type { MarketRegime } from "@/lib/market";
 import { clamp, round } from "./indicators";
+import { analyzeEtfShortTerm } from "./etfShortTermScoring";
 import type { EtfAnalysis, EtfMasterItem, EtfPriceMetrics, EtfScoreBreakdown, EtfSignal } from "./etfTypes";
 
 export const ETF_SCORE_VERSION = "1.0.0";
@@ -53,5 +54,10 @@ export function analyzeEtf(item: EtfMasterItem, metrics: EtfPriceMetrics, market
   if ((metrics.distanceFromMa50 ?? 0) > 0) reasons.push("50日移動平均を上回っています"); else reasons.push("50日移動平均を下回っています");
   if ((metrics.return20d ?? 0) > 0) reasons.push("20日モメンタムがプラスです"); else reasons.push("20日モメンタムが弱含みです");
   reasons.push(`Market Regimeは${marketRegime.replaceAll("_", " ")}です`);
-  return { master: item, metrics, score, exitScore, signal: signalFrom(score, exitScore), breakdown, marketRegime, reasons, warnings: [], scoreVersion: ETF_SCORE_VERSION };
+  const shortTerm = analyzeEtfShortTerm(item, metrics, marketRegime);
+  return {
+    master: item, metrics, score, exitScore, signal: signalFrom(score, exitScore), breakdown, marketRegime, reasons, warnings: [], scoreVersion: ETF_SCORE_VERSION,
+    shortTermScore: shortTerm.score, shortTermSignal: shortTerm.signal, shortTermBreakdown: shortTerm.breakdown,
+    shortTermOverheatPenalty: shortTerm.overheatPenalty, shortTermReasons: shortTerm.reasons, shortTermScoreVersion: shortTerm.scoreVersion,
+  };
 }

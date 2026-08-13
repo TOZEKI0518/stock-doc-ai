@@ -1,4 +1,4 @@
-﻿import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";
 import type { EtfAnalysis } from "./etfTypes";
 
 export async function saveEtfSnapshots(items: EtfAnalysis[]) {
@@ -7,6 +7,9 @@ export async function saveEtfSnapshots(items: EtfAnalysis[]) {
     snapshot_date: item.metrics.asOf.slice(0, 10), symbol: item.master.symbol, yahoo_symbol: item.master.yahooSymbol,
     name: item.master.name, category: item.master.category, strategy: item.master.strategy, price: item.metrics.price,
     etf_score: item.score, exit_score: item.exitScore, signal: item.signal, market_regime: item.marketRegime,
+    short_term_score: item.shortTermScore, short_term_signal: item.shortTermSignal,
+    short_term_breakdown: item.shortTermBreakdown, short_term_overheat_penalty: item.shortTermOverheatPenalty,
+    short_term_score_version: item.shortTermScoreVersion,
     return_7d: item.metrics.return7d, return_20d: item.metrics.return20d, return_60d: item.metrics.return60d, return_120d: item.metrics.return120d,
     distance_ma20: item.metrics.distanceFromMa20, distance_ma50: item.metrics.distanceFromMa50,
     distance_ma200: item.metrics.distanceFromMa200, volatility_20d: item.metrics.volatility20d,

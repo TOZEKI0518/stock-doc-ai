@@ -1,7 +1,8 @@
-﻿import type { MarketRegime } from "@/lib/market";
+import type { MarketRegime } from "@/lib/market";
 
 export type EtfCategory = "CORE" | "GROWTH" | "TECH" | "DIVIDEND" | "SECTOR" | "DEFENSIVE";
 export type EtfSignal = "ACCUMULATE" | "HOLD" | "WATCH" | "REDUCE" | "EXIT";
+export type EtfShortTermSignal = "SHORT_BUY" | "READY" | "WAIT" | "OVERHEATED" | "AVOID";
 
 export type EtfMasterItem = {
   symbol: string;
@@ -46,6 +47,16 @@ export type EtfScoreBreakdown = {
   regimeFit: number;
 };
 
+export type EtfShortTermBreakdown = {
+  momentum7d: number;
+  momentum20d: number;
+  trend: number;
+  acceleration: number;
+  risk: number;
+  regimeFit: number;
+  liquidity: number;
+};
+
 export type EtfAnalysis = {
   master: EtfMasterItem;
   metrics: EtfPriceMetrics;
@@ -57,5 +68,11 @@ export type EtfAnalysis = {
   reasons: string[];
   warnings: string[];
   scoreVersion: string;
+  shortTermScore: number;
+  shortTermSignal: EtfShortTermSignal;
+  shortTermBreakdown: EtfShortTermBreakdown;
+  shortTermOverheatPenalty: number;
+  shortTermReasons: string[];
+  shortTermScoreVersion: string;
 };
 
