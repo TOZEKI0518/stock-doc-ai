@@ -139,7 +139,10 @@ export default function EtfLearningPage() {
             <h1 className="text-3xl font-bold">ETF Learning Report</h1>
             <p className="mt-1 text-sm text-slate-400">ETF Score・Signal・Market Regimeと将来リターンの関係を検証</p>
           </div>
-          <Link href="/etf" className="rounded-xl border border-slate-700 px-3 py-2 text-sm">← ETF</Link>
+          <div className="flex gap-2">
+            <Link href="/etf-short-learning" className="rounded-xl border border-cyan-700 px-3 py-2 text-sm text-cyan-300">短期Learning →</Link>
+            <Link href="/etf" className="rounded-xl border border-slate-700 px-3 py-2 text-sm">← ETF</Link>
+          </div>
         </div>
 
         <div className="mb-5 grid grid-cols-4 gap-2">

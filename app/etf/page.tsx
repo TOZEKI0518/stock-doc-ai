@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -110,6 +110,12 @@ export default function EtfPage() {
               className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500/20"
             >
               ETF Learning Report →
+            </Link>
+            <Link
+              href="/etf-short-learning"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-300 transition hover:bg-cyan-500/20"
+            >
+              Short-Term Learning →
             </Link>
             <Link
               href="/etf-guide"
