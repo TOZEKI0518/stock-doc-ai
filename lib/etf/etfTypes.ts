@@ -3,6 +3,38 @@ import type { MarketRegime } from "@/lib/market";
 export type EtfCategory = "CORE" | "GROWTH" | "TECH" | "DIVIDEND" | "SECTOR" | "DEFENSIVE";
 export type EtfSignal = "ACCUMULATE" | "HOLD" | "WATCH" | "REDUCE" | "EXIT";
 export type EtfShortTermSignal = "SHORT_BUY" | "READY" | "WAIT" | "OVERHEATED" | "AVOID";
+export type EtfComplianceStatus = "ELIGIBLE" | "PRE_APPROVAL_REQUIRED" | "NOT_ELIGIBLE" | "UNKNOWN";
+export type EtfDiversificationType = "BROAD" | "FOCUSED" | "NARROW" | "UNKNOWN";
+
+export type EtfComplianceProfile = {
+  holdingsCount?: number | null;
+  maxHoldingWeight?: number | null;
+  derivativeBased?: boolean | null;
+  derivativeExposureType?: string | null;
+  diversificationType?: EtfDiversificationType;
+  diversificationScore?: number | null;
+  sourceNote?: string | null;
+};
+
+export type EtfComplianceResult = {
+  status: EtfComplianceStatus;
+  reasons: string[];
+  holdingsCount: number | null;
+  maxHoldingWeight: number | null;
+  derivativeBased: boolean | null;
+};
+
+export type EtfReboundStatus = "FALLING" | "OVERSOLD" | "PREPARING" | "CONFIRMED" | "EXTENDED";
+
+export type EtfReboundResult = {
+  score: number;
+  status: EtfReboundStatus;
+  oversoldScore: number;
+  reversalScore: number;
+  trendRepairScore: number;
+  regimeScore: number;
+  reasons: string[];
+};
 
 export type EtfMasterItem = {
   symbol: string;
@@ -16,6 +48,7 @@ export type EtfMasterItem = {
   enabled: boolean;
   priority: number;
   tags: string[];
+  compliance?: EtfComplianceProfile;
 };
 
 export type EtfPriceMetrics = {
@@ -74,5 +107,9 @@ export type EtfAnalysis = {
   shortTermOverheatPenalty: number;
   shortTermReasons: string[];
   shortTermScoreVersion: string;
+  compliance: EtfComplianceResult;
+  diversificationType: EtfDiversificationType;
+  diversificationScore: number | null;
+  rebound: EtfReboundResult;
 };
 

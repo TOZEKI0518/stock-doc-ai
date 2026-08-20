@@ -14,7 +14,12 @@
       "日本株",
       "市場全体",
       "大型株"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1321",
@@ -31,7 +36,13 @@
       "日本株",
       "日経225",
       "大型株"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 225,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "1591",
@@ -48,7 +59,13 @@
       "日本株",
       "高収益",
       "ガバナンス"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 400,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "159A",
@@ -65,7 +82,13 @@
       "日本株",
       "プライム",
       "高品質"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 150,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "2516",
@@ -82,7 +105,13 @@
       "日本株",
       "グロース",
       "中小型"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 250,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "2083",
@@ -99,7 +128,12 @@
       "日本株",
       "成長株",
       "アクティブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2644",
@@ -116,7 +150,15 @@
       "日本株",
       "半導体",
       "テクノロジー"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": 10.6,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。国内株式38銘柄が主投資対象。先物は少額の補助利用。",
+      "holdingsCount": 38,
+      "diversificationType": "FOCUSED",
+      "diversificationScore": 46
+    }
   },
   {
     "symbol": "200A",
@@ -133,7 +175,12 @@
       "日本株",
       "半導体",
       "製造装置"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2854",
@@ -150,7 +197,15 @@
       "日本株",
       "テクノロジー",
       "大型株"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 20,
+      "maxHoldingWeight": 10.3892,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート/目論見書確認。株式20銘柄が主投資対象。先物は構成調整等の補助利用。",
+      "diversificationType": "NARROW",
+      "diversificationScore": 39
+    }
   },
   {
     "symbol": "1489",
@@ -167,7 +222,13 @@
       "日本株",
       "高配当",
       "バリュー"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 50,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "1494",
@@ -184,7 +245,12 @@
       "日本株",
       "高配当",
       "財務健全"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1577",
@@ -201,7 +267,13 @@
       "日本株",
       "高配当",
       "分散"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 70,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "2084",
@@ -218,7 +290,12 @@
       "日本株",
       "高配当",
       "アクティブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2529",
@@ -235,7 +312,13 @@
       "日本株",
       "自社株買い",
       "配当"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 70,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "1615",
@@ -252,7 +335,12 @@
       "日本株",
       "銀行",
       "金利上昇"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1629",
@@ -269,7 +357,12 @@
       "日本株",
       "商社",
       "資源"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1625",
@@ -286,7 +379,12 @@
       "日本株",
       "電機",
       "精密"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1624",
@@ -303,7 +401,12 @@
       "日本株",
       "機械",
       "設備投資"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1622",
@@ -320,7 +423,12 @@
       "日本株",
       "自動車",
       "輸出"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1626",
@@ -337,7 +445,12 @@
       "日本株",
       "情報通信",
       "サービス"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1617",
@@ -354,7 +467,12 @@
       "日本株",
       "食品",
       "ディフェンシブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1621",
@@ -371,7 +489,12 @@
       "日本株",
       "医薬品",
       "ディフェンシブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1478",
@@ -388,7 +511,12 @@
       "日本株",
       "高配当",
       "大型株"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1475",
@@ -405,7 +533,12 @@
       "日本株",
       "TOPIX",
       "低コスト"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1651",
@@ -422,7 +555,13 @@
       "日本株",
       "高配当",
       "TOPIX"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 40,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "2564",
@@ -439,7 +578,12 @@
       "日本株",
       "高配当",
       "インカム"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1399",
@@ -456,7 +600,12 @@
       "日本株",
       "高配当",
       "低ボラティリティ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1477",
@@ -473,7 +622,12 @@
       "日本株",
       "低ボラティリティ",
       "ディフェンシブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1483",
@@ -490,7 +644,12 @@
       "日本株",
       "設備投資",
       "人材投資"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2849",
@@ -507,7 +666,12 @@
       "日本株",
       "高配当",
       "ESG"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1618",
@@ -524,7 +688,12 @@
       "日本株",
       "エネルギー",
       "資源"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1619",
@@ -541,7 +710,12 @@
       "日本株",
       "建設",
       "資材"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1620",
@@ -558,7 +732,12 @@
       "日本株",
       "素材",
       "化学"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1623",
@@ -575,7 +754,12 @@
       "日本株",
       "鉄鋼",
       "非鉄"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1627",
@@ -592,7 +776,12 @@
       "日本株",
       "電力",
       "ガス"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1628",
@@ -609,7 +798,12 @@
       "日本株",
       "運輸",
       "物流"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1630",
@@ -626,7 +820,12 @@
       "日本株",
       "小売",
       "内需"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1631",
@@ -643,7 +842,12 @@
       "日本株",
       "銀行",
       "金融"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1632",
@@ -660,7 +864,12 @@
       "日本株",
       "金融",
       "保険"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1633",
@@ -677,7 +886,12 @@
       "日本株",
       "不動産株",
       "内需"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "1698",
@@ -694,7 +908,13 @@
       "日本株",
       "高配当",
       "分散"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 100,
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "指数/商品名で構成銘柄数を確認。最大構成比率・デリバティブ主投資対象の確認完了までは要確認。"
+    }
   },
   {
     "symbol": "2081",
@@ -711,7 +931,12 @@
       "日本株",
       "政策保有株",
       "ガバナンス"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2627",
@@ -728,7 +953,12 @@
       "日本株",
       "eコマース",
       "デジタル"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   },
   {
     "symbol": "2641",
@@ -745,7 +975,15 @@
       "日本株",
       "グローバル企業",
       "成長"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": 9.8967,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート（2026-04-30）確認。掲載株式19銘柄のため事前承認対象として安全側判定。",
+      "holdingsCount": 19,
+      "diversificationType": "NARROW",
+      "diversificationScore": 37
+    }
   },
   {
     "symbol": "2646",
@@ -762,7 +1000,15 @@
       "日本株",
       "金属",
       "素材"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": 16.2773,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。日本株30銘柄が主投資対象。",
+      "holdingsCount": 30,
+      "diversificationType": "FOCUSED",
+      "diversificationScore": 43
+    }
   },
   {
     "symbol": "2847",
@@ -779,7 +1025,15 @@
       "日本株",
       "インフラ",
       "成長テーマ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": 8.6863,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。日本株31銘柄が主投資対象。",
+      "holdingsCount": 31,
+      "diversificationType": "FOCUSED",
+      "diversificationScore": 44
+    }
   },
   {
     "symbol": "234A",
@@ -796,7 +1050,15 @@
       "日本株",
       "キャッシュフロー",
       "高品質"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": 5.6501,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。日本株50銘柄が主投資対象。",
+      "holdingsCount": 50,
+      "diversificationType": "FOCUSED",
+      "diversificationScore": 51
+    }
   },
   {
     "symbol": "235A",
@@ -813,7 +1075,15 @@
       "日本株",
       "高配当",
       "大型株"
-    ]
+    ],
+    "compliance": {
+      "holdingsCount": 30,
+      "maxHoldingWeight": 10.725,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。日本株30銘柄が主投資対象。",
+      "diversificationType": "FOCUSED",
+      "diversificationScore": 43
+    }
   },
   {
     "symbol": "315A",
@@ -830,7 +1100,15 @@
       "日本株",
       "銀行",
       "高配当"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": false,
+      "sourceNote": "Global X公式ファクトシート確認。保有15銘柄のため事前承認対象。",
+      "holdingsCount": 15,
+      "diversificationType": "NARROW",
+      "diversificationScore": 29
+    }
   },
   {
     "symbol": "349A",
@@ -847,6 +1125,11 @@
       "日本株",
       "グロース",
       "アクティブ"
-    ]
+    ],
+    "compliance": {
+      "maxHoldingWeight": null,
+      "derivativeBased": null,
+      "sourceNote": "社内ルール判定用。公式資料で未確認の項目はnullのまま保持。"
+    }
   }
 ]
