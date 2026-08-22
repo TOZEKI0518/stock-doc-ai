@@ -373,7 +373,7 @@ export default function EtfPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-3">
-                    <p className="text-xs text-emerald-200">中期Score</p>
+                    <p className="text-xs text-emerald-200">中期Score v2</p>
                     <div className="mt-1 flex items-end justify-between">
                       <p className="text-2xl font-bold">{item.score.toFixed(1)}</p>
                       <p className={`text-sm font-bold ${signalClass(item.signal)}`}>
@@ -426,7 +426,17 @@ export default function EtfPage() {
                 {isOpen && (
                   <div className="mt-4 space-y-4">
                     <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-                      <h3 className="mb-3 font-bold text-white">中期スコア内訳</h3>
+                      <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-slate-900/70 p-3">
+                          <span className="text-slate-500">旧 v1 Score</span><br/>
+                          <b className="text-lg">{item.legacyScore.toFixed(1)}</b>
+                        </div>
+                        <div className="rounded-lg bg-slate-900/70 p-3">
+                          <span className="text-slate-500">過熱Penalty</span><br/>
+                          <b className="text-lg text-orange-300">-{item.overextensionPenalty.toFixed(1)}</b>
+                        </div>
+                      </div>
+                      <h3 className="mb-3 font-bold text-white">中期スコア v2 内訳</h3>
                       <div className="space-y-3">
                         <ScoreRow label="トレンド" score={item.breakdown.trend} />
                         <ScoreRow label="モメンタム" score={item.breakdown.momentum} />

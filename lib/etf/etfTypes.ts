@@ -94,6 +94,8 @@ export type EtfAnalysis = {
   master: EtfMasterItem;
   metrics: EtfPriceMetrics;
   score: number;
+  legacyScore: number;
+  overextensionPenalty: number;
   exitScore: number;
   signal: EtfSignal;
   breakdown: EtfScoreBreakdown;
@@ -101,6 +103,7 @@ export type EtfAnalysis = {
   reasons: string[];
   warnings: string[];
   scoreVersion: string;
+  legacyScoreVersion: string;
   shortTermScore: number;
   shortTermSignal: EtfShortTermSignal;
   shortTermBreakdown: EtfShortTermBreakdown;
