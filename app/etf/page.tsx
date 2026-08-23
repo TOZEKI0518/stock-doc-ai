@@ -26,7 +26,7 @@ function signed(value: number | null) {
 
 function shortSignalLabel(signal: string) {
   return signal === "SHORT_BUY"
-    ? "短期BUY"
+    ? "買い"
     : signal === "READY"
       ? "準備"
       : signal === "OVERHEATED"
@@ -38,14 +38,14 @@ function shortSignalLabel(signal: string) {
 
 function signalLabel(signal: string) {
   return signal === "ACCUMULATE"
-    ? "BUY"
+    ? "買い"
     : signal === "HOLD"
-      ? "HOLD"
+      ? "保有"
       : signal === "WATCH"
-        ? "WATCH"
+        ? "待機"
         : signal === "REDUCE"
-          ? "REDUCE"
-          : "EXIT";
+          ? "縮小"
+          : "売却";
 }
 
 function scoreBarClass(score: number) {

@@ -32,7 +32,7 @@ const sections = [
     body: [
       "100点満点で、中期的な強さを評価します。",
       "配点は Trend 30% / Momentum 25% / Risk 20% / Liquidity 15% / Market Regime Fit 10% です。",
-      "基本判定は Score 78以上かつ Exit 40未満で ACCUMULATE、Score 58以上かつ Exit 55未満で HOLD。それ以外は WATCH です。Exitが60以上なら REDUCE、75以上なら EXIT が優先されます。",
+      "基本判定は Score 78以上かつ Exit 40未満で「買い」、Score 58以上かつ Exit 55未満で「保有」。それ以外は「待機」です。Exitが60以上なら「縮小」、75以上なら「売却」が優先されます。内部コードは ACCUMULATE / HOLD / WATCH / REDUCE / EXIT のままです。",
       "Rebound Scoreは中期Scoreとは独立しています。中期Scoreが低くても、急落後の反発だけを狙えるケースがあります。",
     ],
   },
@@ -43,6 +43,26 @@ const sections = [
       "7日モメンタム、20日トレンド、上昇加速、リスク、Market Regime、流動性などを使い、短期的な入りやすさを評価します。",
       "7日リターンが高すぎる場合は、すでに上がり過ぎている可能性があるため過熱ペナルティを入れています。",
       "中期Scoreが高くても短期Scoreが低い場合は『中期では強いが短期では高値追い注意』、逆なら『中期トレンドは弱いが短期反発候補』という読み方ができます。",
+    ],
+  },
+  {
+    title: "シグナルの意味：買い / 保有 / 待機 / 準備",
+    body: [
+      "買い: 新規エントリー候補です。中期なら強さとExit条件、短期なら短期モメンタムなどが買い条件を満たした状態です。",
+      "保有: 中期では現在のトレンドを維持しており、すでに保有しているなら継続候補です。ただし、新規で今すぐ買うほど強い判定ではありません。",
+      "待機: 現時点では新規エントリーを急がない状態です。方向感やスコアがまだ不十分で、次の改善シグナルを待ちます。",
+      "準備: 短期専用の『買いの一歩手前』です。短期条件が改善しており、次にモメンタムや反発確認が加われば『買い』へ移る可能性があります。",
+      "つまり『保有』は既存ポジションを維持する意味、『待機』はまだ新規で動かない意味、『準備』は新規買い候補へ近づいている意味です。",
+      "例: 中期=保有 / 短期=待機 → 中期的には悪くないが今は買い時ではない。中期=保有 / 短期=準備 → 中期の土台があり、短期エントリー条件が整いつつある。",
+    ],
+  },
+  {
+    title: "そのほかのシグナル",
+    body: [
+      "過熱: 短期で上がり過ぎており、高値追いを避けたい状態です。",
+      "回避: 短期的な条件が弱く、新規エントリーを避ける判定です。",
+      "縮小: 中期のExitリスクが高まり、保有量を減らす方向の判定です。",
+      "売却: Exitリスクが高く、中期判定では撤退を優先する状態です。",
     ],
   },
   {
@@ -75,7 +95,7 @@ const sections = [
     title: "Exit",
     body: [
       "Exit Scoreは撤退リスクです。中期Score・短期Score・Rebound Scoreとは逆で、低いほど良い指標です。",
-      "目安は 0〜39: 継続しやすい / 40〜59: 注意 / 60〜74: REDUCE / 75以上: EXIT です。",
+      "目安は 0〜39: 継続しやすい / 40〜59: 注意 / 60〜74: 縮小 / 75以上: 売却です。",
       "移動平均割れ、モメンタム悪化、高値からの下落、Market Regime悪化などで上昇します。Reboundが高くてもExitが高い場合は慎重に見ます。",
     ],
   },
@@ -122,6 +142,15 @@ export default function EtfGuidePage() {
             <p>⑥ Market Regime</p>
             <p>⑦ 中期Score</p>
             <p>⑧ BROAD / FOCUSED / NARROW</p>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-5">
+          <p className="text-sm font-bold text-violet-300">迷いやすい3つの違い</p>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-950/50 p-3"><b className="text-sky-300">保有</b><p className="mt-1 text-slate-300">持っているなら継続候補。新規買いを強く勧める状態ではない。</p></div>
+            <div className="rounded-xl bg-slate-950/50 p-3"><b className="text-amber-300">待機</b><p className="mt-1 text-slate-300">まだ動かない。方向感や条件の改善を待つ。</p></div>
+            <div className="rounded-xl bg-slate-950/50 p-3"><b className="text-cyan-300">準備</b><p className="mt-1 text-slate-300">買いの一歩手前。短期条件が整いつつある。</p></div>
           </div>
         </div>
 
