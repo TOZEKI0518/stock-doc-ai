@@ -130,6 +130,7 @@ export function analyzeEtf(item: EtfMasterItem, metrics: EtfPriceMetrics, market
     score, legacyScore: legacy.score, overextensionPenalty: overextension,
     exitScore, signal: signalFrom(score, exitScore), breakdown, marketRegime, reasons, warnings: [], scoreVersion: ETF_SCORE_VERSION, legacyScoreVersion: ETF_SCORE_V1_VERSION,
     shortTermScore: shortTerm.score, shortTermSignal: shortTerm.signal, shortTermBreakdown: shortTerm.breakdown,
+    legacyShortTermScore: shortTerm.legacyScore, legacyShortTermSignal: shortTerm.legacySignal, legacyShortTermScoreVersion: shortTerm.legacyScoreVersion,
     shortTermOverheatPenalty: shortTerm.overheatPenalty, shortTermReasons: shortTerm.reasons, shortTermScoreVersion: shortTerm.scoreVersion,
   };
 }

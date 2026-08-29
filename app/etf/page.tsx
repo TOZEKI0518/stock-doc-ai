@@ -383,7 +383,7 @@ export default function EtfPage() {
                   </div>
 
                   <div className="rounded-xl border border-cyan-800 bg-cyan-950/50 p-3">
-                    <p className="text-xs text-cyan-200">短期Score</p>
+                    <p className="text-xs text-cyan-200">短期Score v2</p>
                     <div className="mt-1 flex items-end justify-between">
                       <p className="text-2xl font-bold">{item.shortTermScore.toFixed(1)}</p>
                       <p
@@ -444,6 +444,15 @@ export default function EtfPage() {
                         <ScoreRow label="流動性" score={item.breakdown.liquidity} />
                         <ScoreRow label="市場適合度" score={item.breakdown.regimeFit} />
                       </div>
+                    </div>
+
+                    <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
+                      <h3 className="font-bold text-white">短期Score v2</h3>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-slate-900/70 p-3"><span className="text-slate-500">現 v2</span><br/><b className="text-lg">{item.shortTermScore.toFixed(1)}</b></div>
+                        <div className="rounded-lg bg-slate-900/70 p-3"><span className="text-slate-500">旧 v1</span><br/><b className="text-lg">{item.legacyShortTermScore.toFixed(1)}</b></div>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-cyan-100/80">{item.shortTermReasons.join(" / ")}</p>
                     </div>
 
                     <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">

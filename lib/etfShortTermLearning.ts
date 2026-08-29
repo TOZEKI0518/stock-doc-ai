@@ -1,4 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { analyzeEtfShortTerm, analyzeEtfShortTermV1 } from "@/lib/etf/etfShortTermScoring";
+import type { EtfMasterItem, EtfPriceMetrics } from "@/lib/etf/etfTypes";
+import type { MarketRegime } from "@/lib/market";
 
 type ShortBreakdown = {
   momentum7d?: unknown;
@@ -8,6 +11,8 @@ type ShortBreakdown = {
   risk?: unknown;
   regimeFit?: unknown;
   liquidity?: unknown;
+  legacyScore?: unknown;
+  legacySignal?: unknown;
 };
 
 type Row = {
@@ -23,6 +28,16 @@ type Row = {
   short_term_breakdown: ShortBreakdown | null;
   short_term_overheat_penalty: number | string | null;
   short_term_score_version: string | null;
+  return_7d: number | string | null;
+  return_20d: number | string | null;
+  return_60d: number | string | null;
+  return_120d: number | string | null;
+  distance_ma20: number | string | null;
+  distance_ma50: number | string | null;
+  distance_ma200: number | string | null;
+  volatility_20d: number | string | null;
+  drawdown_from_high: number | string | null;
+  average_volume_20d: number | string | null;
 };
 
 export type ShortLearningTrade = {
@@ -86,6 +101,7 @@ function labelSignal(signal: string) {
 function summarize(label: string, trades: ShortLearningTrade[]): ShortLearningBucket {
   const hitDays = trades.flatMap((t) => (t.targetHitDay === null ? [] : [t.targetHitDay]));
   const hits = trades.filter((t) => t.targetHit).length;
+
   return {
     label,
     count: trades.length,
@@ -105,7 +121,7 @@ async function fetchRows(): Promise<Row[]> {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("etf_snapshots")
-      .select("snapshot_date,symbol,name,category,strategy,price,market_regime,short_term_score,short_term_signal,short_term_breakdown,short_term_overheat_penalty,short_term_score_version")
+      .select("snapshot_date,symbol,name,category,strategy,price,market_regime,short_term_score,short_term_signal,short_term_breakdown,short_term_overheat_penalty,short_term_score_version,return_7d,return_20d,return_60d,return_120d,distance_ma20,distance_ma50,distance_ma200,volatility_20d,drawdown_from_high,average_volume_20d")
       .order("snapshot_date", { ascending: true })
       .order("symbol", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -117,6 +133,19 @@ async function fetchRows(): Promise<Row[]> {
   }
   return rows;
 }
+
+function metricsFromRow(base: Row): EtfPriceMetrics {
+  return {
+    asOf: base.snapshot_date, price: num(base.price) ?? 0, previousClose: null, changePercent1d: null,
+    return7d: num(base.return_7d), return20d: num(base.return_20d), return60d: num(base.return_60d), return120d: num(base.return_120d),
+    movingAverage20: null, movingAverage50: null, movingAverage200: null,
+    distanceFromMa20: num(base.distance_ma20), distanceFromMa50: num(base.distance_ma50), distanceFromMa200: num(base.distance_ma200),
+    volatility20d: num(base.volatility_20d), drawdownFromHigh: num(base.drawdown_from_high), averageVolume20d: num(base.average_volume_20d), sampleSize: 0,
+  };
+}
+function itemFromRow(base: Row) { return { category: (base.category ?? "CORE") } as EtfMasterItem; }
+function deriveV1(base: Row) { return analyzeEtfShortTermV1(itemFromRow(base), metricsFromRow(base), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
+function deriveV2(base: Row) { return analyzeEtfShortTerm(itemFromRow(base), metricsFromRow(base), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
 
 export async function getEtfShortTermLearningSummary() {
   const rows = await fetchRows();
@@ -135,6 +164,7 @@ export async function getEtfShortTermLearningSummary() {
   for (const list of bySymbol.values()) list.sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
 
   const trades: ShortLearningTrade[] = [];
+  const v2Trades: ShortLearningTrade[] = [];
   for (const base of scored) {
     const basePrice = num(base.price);
     const score = num(base.short_term_score);
@@ -150,7 +180,7 @@ export async function getEtfShortTermLearningSummary() {
     const pathReturns = path.map((x) => ret(basePrice, x.price));
     const hitIndex = pathReturns.findIndex((r) => r >= TARGET_RETURN);
     const b = base.short_term_breakdown ?? {};
-    trades.push({
+    const trade: ShortLearningTrade = {
       symbol: base.symbol,
       name: base.name ?? base.symbol,
       category: base.category ?? "UNKNOWN",
@@ -174,7 +204,11 @@ export async function getEtfShortTermLearningSummary() {
         momentum7d: num(b.momentum7d), momentum20d: num(b.momentum20d), trend: num(b.trend), acceleration: num(b.acceleration),
         risk: num(b.risk), regimeFit: num(b.regimeFit), liquidity: num(b.liquidity),
       },
-    });
+    };
+    const v1 = deriveV1(base);
+    trades.push({ ...trade, shortTermScore: v1.score, shortTermSignal: v1.signal, scoreVersion: v1.scoreVersion, overheatPenalty: v1.overheatPenalty, breakdown: { ...v1.breakdown } });
+    const v2 = deriveV2(base);
+    v2Trades.push({ ...trade, shortTermScore: v2.score, shortTermSignal: v2.signal, scoreVersion: v2.scoreVersion, overheatPenalty: v2.overheatPenalty, breakdown: { ...v2.breakdown } });
   }
 
   const scoreBuckets = [
@@ -204,6 +238,16 @@ export async function getEtfShortTermLearningSummary() {
   if (eligible[0]) insights.push(`${eligible[0].label}が件数5件以上のScore帯で+2%到達率最大（${eligible[0].targetHitRate.toFixed(1)}%）です。`);
   if (!insights.length) insights.push("短期Score保存開始後、7営業日分の将来Snapshotがそろうと検証結果が表示されます。");
 
+  const v2ScoreBuckets = [
+    summarize("80点以上", v2Trades.filter((t) => t.shortTermScore >= 80)),
+    summarize("70〜79点", v2Trades.filter((t) => t.shortTermScore >= 70 && t.shortTermScore < 80)),
+    summarize("60〜69点", v2Trades.filter((t) => t.shortTermScore >= 60 && t.shortTermScore < 70)),
+    summarize("60点未満", v2Trades.filter((t) => t.shortTermScore < 60)),
+  ];
+  const v2SignalBuckets = signals.map((sig) => summarize(labelSignal(sig), v2Trades.filter((t) => t.shortTermSignal === sig)));
+  const v2Overall = summarize("全短期Score v2", v2Trades);
+  const v2ShortBuy = summarize("短期BUY v2", v2Trades.filter((t) => t.shortTermSignal === "SHORT_BUY"));
+
   return {
     horizonTradingDays: HORIZON,
     targetReturn: TARGET_RETURN,
@@ -214,6 +258,7 @@ export async function getEtfShortTermLearningSummary() {
     latestScoredDate,
     latestScoredCount,
     overall: summarize("全短期Score", trades),
+    v2Overall, v2ShortBuy, v2ScoreBuckets, v2SignalBuckets,
     shortBuy,
     overheated,
     scoreBuckets,

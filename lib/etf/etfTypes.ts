@@ -105,6 +105,9 @@ export type EtfAnalysis = {
   scoreVersion: string;
   legacyScoreVersion: string;
   shortTermScore: number;
+  legacyShortTermScore: number;
+  legacyShortTermSignal: EtfShortTermSignal;
+  legacyShortTermScoreVersion: string;
   shortTermSignal: EtfShortTermSignal;
   shortTermBreakdown: EtfShortTermBreakdown;
   shortTermOverheatPenalty: number;
