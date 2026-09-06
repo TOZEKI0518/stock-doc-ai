@@ -33,3 +33,37 @@ Then verify:
 - ETF score guide updated to reflect Mid Score v2 overextension logic.
 - Short Score guide corrected to v2 pullback / mean-reversion / stabilization logic.
 - ETF detail now displays Short Score v2 component bars and Danger Penalty.
+
+2026-09-06 Trade Support update
+- Removed the Analysis Structure panel from the home page.
+- Added ETF Trade Decision Engine (BUY / WAIT / HOLD / REDUCE / SELL).
+- Decision integrates Short v2, Mid v2, Exit Score, Market Regime, Rebound and Compliance.
+- Added surplus-cash based recommended amount / units (15-25% base allocation, risk/regime adjusted).
+- Added per-ETF holding state, quantity and average price stored in localStorage.
+- Compliance NOT_ELIGIBLE / UNKNOWN / PRE_APPROVAL_REQUIRED blocks or pauses new BUY recommendations.
+
+2026-09-06 Trade Support v2
+- Home: Analysis Structure panel remains removed.
+- ETF Compliance: added manual override per ETF for holdings count, max holding weight, derivative-based flag, and checked date.
+- Manual Compliance values are stored in localStorage and applied immediately to badges, Compliance filter, and Trade Decision.
+- Rule: holdings >= 21 and max holding weight < 25% and derivativeBased=false => ELIGIBLE; otherwise pre-approval / blocked / check required as applicable.
+- Manual holdings count also updates the displayed diversification label.
+- Recommended investment amount/units remain displayed only when final Trade Decision is BUY. WAIT/HOLD/CHECK_REQUIRED/PRE_APPROVAL/BLOCKED show no new investment amount.
+
+Compliance provenance hardening (Trade Support v3)
+- Positive "取引可" decisions now require traceable source metadata and a verification/source date.
+- Compliance data older than 90 days is treated as 要確認 for safety.
+- Conservative blocks (derivative-based / <21 holdings / max holding >=25%) are still honored even when provenance is incomplete.
+- Manual verification now stores source name, optional source URL, and checked date.
+- ETF detail UI shows Compliance data provenance and freshness status.
+- Existing static master values without source/date proof no longer unlock BUY automatically.
+
+Trade Support v4 (2026-09-06)
+- Added held-position valuation and unrealized P/L to ETF Trade Decision.
+- SELL/REDUCE now show suggested units and estimated proceeds.
+- Added explicit BUY/SELL execution recording; updates holdings and surplus cash after manual broker execution.
+- Added /etf-trade-log with holdings, realized P/L, sell win rate, decision-time scores and up to 500 local records.
+- Added 15-minute in-page refresh during TSE trading hours plus manual refresh and signal-change alerts.
+- Added clear disclosure that price data can be delayed and auto-refresh only works while the page is open.
+- Changed Compliance/category filters to wrap on mobile instead of horizontal scrolling.
+- Preserved provenance-required Compliance gating and Analysis Structure removal.

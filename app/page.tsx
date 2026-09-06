@@ -41,20 +41,6 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Analysis Structure</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded-xl bg-slate-950/70 p-3">
-              <p className="font-bold text-emerald-300">株</p>
-              <p className="mt-1 leading-5 text-slate-400">ランキング → 個別分析 → AI学習 / バックテスト / Strategy Lab</p>
-            </div>
-            <div className="rounded-xl bg-slate-950/70 p-3">
-              <p className="font-bold text-cyan-300">ETF</p>
-              <p className="mt-1 leading-5 text-slate-400">ランキング → 短期 / 中期 → Learning / Compliance</p>
-            </div>
-          </div>
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/dashboard"

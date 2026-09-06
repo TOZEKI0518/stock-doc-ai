@@ -1,8 +1,173 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { EtfAnalysis, EtfCategory } from "@/lib/etf";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { EtfAnalysis, EtfCategory, EtfComplianceResult } from "@/lib/etf";
+import { decideEtfTrade } from "@/lib/etf/etfTradeDecision";
+
+
+
+type ManualComplianceOverride = {
+  holdingsCount: number | null;
+  maxHoldingWeight: number | null;
+  derivativeBased: boolean | null;
+  checkedAt: string;
+  sourceName: string;
+  sourceUrl: string;
+};
+
+
+function effectiveDiversificationType(item: EtfAnalysis, manual?: ManualComplianceOverride) {
+  const count = manual?.holdingsCount;
+  if (typeof count !== "number") return item.diversificationType;
+  if (count >= 100) return "BROAD";
+  if (count >= 21) return "FOCUSED";
+  return "NARROW";
+}
+
+function complianceAgeDays(dateText: string | null | undefined) {
+  if (!dateText) return null;
+  const d = new Date(`${dateText.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+function effectiveCompliance(
+  item: EtfAnalysis,
+  manual?: ManualComplianceOverride
+): EtfComplianceResult {
+  if (!manual) return item.compliance;
+
+  const holdingsCount = manual.holdingsCount;
+  const maxHoldingWeight = manual.maxHoldingWeight;
+  const derivativeBased = manual.derivativeBased;
+  const sourceName = manual.sourceName?.trim() || null;
+  const sourceUrl = manual.sourceUrl?.trim() || null;
+  const checkedAt = manual.checkedAt || null;
+  const age = complianceAgeDays(checkedAt);
+  const stale = age !== null && age > 90;
+  const provenanceVerified = Boolean(sourceName && checkedAt);
+  const common = {
+    holdingsCount,
+    maxHoldingWeight,
+    derivativeBased,
+    sourceName,
+    sourceUrl,
+    sourceDate: checkedAt,
+    verifiedAt: checkedAt,
+    sourceNote: sourceName ? `手動確認: ${sourceName}` : "手動確認",
+    provenanceVerified,
+    stale,
+  };
+
+  if (derivativeBased === true) {
+    return {
+      status: "NOT_ELIGIBLE",
+      reasons: ["手動確認: デリバティブ投資対象のため対象外"],
+      ...common,
+    };
+  }
+
+  const preApprovalReasons: string[] = [];
+  if (holdingsCount !== null && holdingsCount < 21) {
+    preApprovalReasons.push(`構成銘柄数 ${holdingsCount}（21銘柄未満）`);
+  }
+  if (maxHoldingWeight !== null && maxHoldingWeight >= 25) {
+    preApprovalReasons.push(`最大構成比率 ${maxHoldingWeight.toFixed(1)}%（25%以上）`);
+  }
+  if (preApprovalReasons.length > 0) {
+    return {
+      status: "PRE_APPROVAL_REQUIRED",
+      reasons: ["手動確認", ...preApprovalReasons],
+      ...common,
+    };
+  }
+
+  const missing: string[] = [];
+  if (holdingsCount === null) missing.push("構成銘柄数");
+  if (maxHoldingWeight === null) missing.push("最大構成比率");
+  if (derivativeBased === null) missing.push("デリバティブ投資対象");
+  if (!sourceName) missing.push("情報源");
+  if (!checkedAt) missing.push("確認日");
+  if (missing.length > 0) {
+    return {
+      status: "UNKNOWN",
+      reasons: [`手動確認未完了: ${missing.join("・")}`],
+      ...common,
+    };
+  }
+
+  if (stale) {
+    return {
+      status: "UNKNOWN",
+      reasons: ["手動Compliance情報が90日超のため再確認が必要です"],
+      ...common,
+    };
+  }
+
+  return {
+    status: "ELIGIBLE",
+    reasons: [
+      `手動確認済み (${checkedAt})`,
+      "21銘柄以上・最大構成比25%未満・デリバティブ型ではない",
+    ],
+    ...common,
+  };
+}
+
+
+
+type EtfHolding = {
+  quantity: number;
+  averagePrice: number;
+  acquiredAt?: string;
+};
+
+type EtfTradeRecord = {
+  id: string;
+  symbol: string;
+  name: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  amount: number;
+  executedAt: string;
+  decisionAction: string;
+  midScore: number;
+  shortScore: number;
+  exitScore: number;
+  marketRegime: string;
+  realizedPnl?: number;
+};
+
+type TradeDraft = { quantity: number; price: number };
+
+function isJapanMarketOpenNow() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tokyo",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (["Sat", "Sun"].includes(value.weekday)) return false;
+  const minutes = Number(value.hour) * 60 + Number(value.minute);
+  return (minutes >= 9 * 60 && minutes <= 11 * 60 + 30) || (minutes >= 12 * 60 + 30 && minutes <= 15 * 60 + 30);
+}
+
+function formatJstTime(value: string | null) {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
 
 type Payload = {
   marketRegime: string;
@@ -121,6 +286,39 @@ function reboundClass(status: string) {
           : "border-slate-600 bg-slate-800 text-slate-300";
 }
 
+
+function tradeActionLabel(action: string) {
+  return action === "BUY"
+    ? "BUY"
+    : action === "HOLD"
+      ? "HOLD"
+      : action === "REDUCE"
+        ? "REDUCE"
+        : action === "SELL"
+          ? "SELL"
+          : action === "PRE_APPROVAL"
+            ? "事前承認"
+            : action === "CHECK_REQUIRED"
+              ? "要確認"
+              : action === "BLOCKED"
+                ? "対象外"
+                : "WAIT";
+}
+
+function tradeActionClass(action: string) {
+  return action === "BUY"
+    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+    : action === "HOLD"
+      ? "border-sky-500/40 bg-sky-500/10 text-sky-300"
+      : action === "REDUCE"
+        ? "border-orange-500/40 bg-orange-500/10 text-orange-300"
+        : action === "SELL" || action === "BLOCKED"
+          ? "border-red-500/40 bg-red-500/10 text-red-300"
+          : action === "PRE_APPROVAL"
+            ? "border-violet-500/40 bg-violet-500/10 text-violet-300"
+            : "border-amber-500/40 bg-amber-500/10 text-amber-300";
+}
+
 function ScoreRow({ label, score }: { label: string; score: number }) {
   return (
     <div>
@@ -147,21 +345,164 @@ export default function EtfPage() {
     "ALL" | "ELIGIBLE" | "PRE_APPROVAL_REQUIRED" | "NOT_ELIGIBLE" | "UNKNOWN"
   >("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [surplusCash, setSurplusCash] = useState(300000);
+  const [heldSymbols, setHeldSymbols] = useState<Record<string, EtfHolding>>({});
+  const [manualCompliance, setManualCompliance] = useState<Record<string, ManualComplianceOverride>>({});
+  const [tradeLog, setTradeLog] = useState<EtfTradeRecord[]>([]);
+  const [tradeDrafts, setTradeDrafts] = useState<Record<string, TradeDraft>>({});
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [signalAlerts, setSignalAlerts] = useState<string[]>([]);
+  const lastActionsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
-    setData(null);
-    setError("");
+    try {
+      const savedCash = window.localStorage.getItem("stockdoc.etf.surplusCash");
+      const savedHoldings = window.localStorage.getItem("stockdoc.etf.holdings");
+      const savedCompliance = window.localStorage.getItem("stockdoc.etf.manualCompliance");
+      const savedTradeLog = window.localStorage.getItem("stockdoc.etf.tradeLog");
+      if (savedCash) setSurplusCash(Number(savedCash) || 0);
+      if (savedHoldings) setHeldSymbols(JSON.parse(savedHoldings));
+      if (savedCompliance) setManualCompliance(JSON.parse(savedCompliance));
+      if (savedTradeLog) setTradeLog(JSON.parse(savedTradeLog));
+    } catch {}
+  }, []);
 
-    fetch(`/api/etf-ranking${category === "ALL" ? "" : `?category=${category}`}`, {
-      cache: "no-store",
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("ETF API failed");
-        return r.json();
-      })
-      .then(setData)
-      .catch(() => setError("ETFデータを取得できませんでした。"));
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("stockdoc.etf.surplusCash", String(surplusCash));
+    } catch {}
+  }, [surplusCash]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("stockdoc.etf.holdings", JSON.stringify(heldSymbols));
+    } catch {}
+  }, [heldSymbols]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("stockdoc.etf.manualCompliance", JSON.stringify(manualCompliance));
+    } catch {}
+  }, [manualCompliance]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("stockdoc.etf.tradeLog", JSON.stringify(tradeLog));
+    } catch {}
+  }, [tradeLog]);
+
+  const loadData = useCallback(async (showLoading = false) => {
+    if (showLoading) setData(null);
+    setError("");
+    setRefreshing(true);
+    try {
+      const r = await fetch(`/api/etf-ranking${category === "ALL" ? "" : `?category=${category}`}`, { cache: "no-store" });
+      if (!r.ok) throw new Error("ETF API failed");
+      const payload = (await r.json()) as Payload;
+      setData(payload);
+      setLastRefreshAt(new Date().toISOString());
+    } catch {
+      setError("ETFデータを取得できませんでした。");
+    } finally {
+      setRefreshing(false);
+    }
   }, [category]);
+
+  useEffect(() => {
+    loadData(true);
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const timer = window.setInterval(() => {
+      if (isJapanMarketOpenNow()) loadData(false);
+    }, 15 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [autoRefresh, loadData]);
+
+  useEffect(() => {
+    if (!data) return;
+    const next: Record<string, string> = {};
+    const alerts: string[] = [];
+    for (const item of data.analyses) {
+      const manual = manualCompliance[item.master.symbol];
+      const compliance = effectiveCompliance(item, manual);
+      const holding = heldSymbols[item.master.symbol];
+      const decision = decideEtfTrade({
+        analysis: { ...item, compliance },
+        surplusCash,
+        position: {
+          isHeld: Boolean(holding),
+          quantity: holding?.quantity ?? 0,
+          averagePrice: holding?.averagePrice ?? 0,
+        },
+      });
+      next[item.master.symbol] = decision.action;
+      const prev = lastActionsRef.current[item.master.symbol];
+      if (prev && prev !== decision.action && ["BUY", "SELL", "REDUCE"].includes(decision.action)) {
+        alerts.push(`${item.master.symbol} ${item.master.shortName}: ${prev} → ${decision.action}`);
+      }
+    }
+    lastActionsRef.current = next;
+    if (alerts.length) setSignalAlerts((prev) => [...alerts, ...prev].slice(0, 5));
+  }, [data, heldSymbols, manualCompliance, surplusCash]);
+
+  const recordTrade = (item: EtfAnalysis, decisionAction: string, side: "BUY" | "SELL") => {
+    const draft = tradeDrafts[item.master.symbol] ?? { quantity: 1, price: item.metrics.price };
+    const quantity = Math.max(0, Math.floor(draft.quantity));
+    const price = Math.max(0, Number(draft.price));
+    if (!quantity || !price) return;
+
+    const current = heldSymbols[item.master.symbol];
+    let realizedPnl: number | undefined;
+    let recordQuantity = quantity;
+    if (side === "BUY") {
+      const oldQty = current?.quantity ?? 0;
+      const oldAvg = current?.averagePrice ?? 0;
+      const newQty = oldQty + quantity;
+      const newAvg = newQty > 0 ? ((oldQty * oldAvg) + (quantity * price)) / newQty : price;
+      setHeldSymbols((prev) => ({
+        ...prev,
+        [item.master.symbol]: { quantity: newQty, averagePrice: Math.round(newAvg * 100) / 100, acquiredAt: current?.acquiredAt ?? new Date().toISOString() },
+      }));
+      setSurplusCash((prev) => Math.max(0, Math.round(prev - quantity * price)));
+    } else {
+      const available = current?.quantity ?? 0;
+      if (!available) return;
+      const sellQty = Math.min(quantity, available);
+      realizedPnl = Math.round((price - (current?.averagePrice ?? 0)) * sellQty);
+      const remaining = available - sellQty;
+      setHeldSymbols((prev) => {
+        const next = { ...prev };
+        if (remaining <= 0) delete next[item.master.symbol];
+        else next[item.master.symbol] = { ...current, quantity: remaining };
+        return next;
+      });
+      setSurplusCash((prev) => Math.round(prev + sellQty * price));
+      recordQuantity = sellQty;
+    }
+
+    const record: EtfTradeRecord = {
+      id: `${Date.now()}-${item.master.symbol}-${side}`,
+      symbol: item.master.symbol,
+      name: item.master.shortName,
+      side,
+      quantity: recordQuantity,
+      price,
+      amount: Math.round(recordQuantity * price),
+      executedAt: new Date().toISOString(),
+      decisionAction,
+      midScore: Math.round(item.score * 10) / 10,
+      shortScore: Math.round(item.shortTermScore * 10) / 10,
+      exitScore: Math.round(item.exitScore * 10) / 10,
+      marketRegime: item.marketRegime,
+      realizedPnl,
+    };
+    setTradeLog((prev) => [record, ...prev].slice(0, 500));
+    setTradeDrafts((prev) => ({ ...prev, [item.master.symbol]: { quantity: 1, price: item.metrics.price } }));
+  };
 
   const visible = useMemo(() => {
     if (!data) return [];
@@ -169,14 +510,14 @@ export default function EtfPage() {
       .filter(
         (item) =>
           complianceFilter === "ALL" ||
-          item.compliance.status === complianceFilter
+          effectiveCompliance(item, manualCompliance[item.master.symbol]).status === complianceFilter
       )
       .sort((a, b) =>
         rankingMode === "SHORT"
           ? b.shortTermScore - a.shortTermScore
           : b.score - a.score
       );
-  }, [data, complianceFilter, rankingMode]);
+  }, [data, complianceFilter, rankingMode, manualCompliance]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -222,6 +563,14 @@ export default function EtfPage() {
             <div className="mt-1 font-bold">Short Learning</div>
             <div className="mt-1 text-xs text-cyan-100">短期成績</div>
           </Link>
+          <Link
+            href="/etf-trade-log"
+            className="rounded-2xl border border-violet-700 bg-violet-950 p-4"
+          >
+            <div className="text-xl">🧾</div>
+            <div className="mt-1 font-bold">売買履歴</div>
+            <div className="mt-1 text-xs text-violet-100">保有・実績・学習</div>
+          </Link>
         </div>
 
         {data && (
@@ -242,6 +591,53 @@ export default function EtfPage() {
                 <p className="mt-1 text-lg font-bold">{data.analyses.length}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        <div className="mb-5 rounded-2xl border border-emerald-700/60 bg-emerald-950/30 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-emerald-300">ETF TRADE SUPPORT</p>
+              <h2 className="mt-1 text-lg font-bold">BUY / WAIT / SELL 判定</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-400">
+                V2短期・中期・Exit・Market Regime・Complianceを統合して売買判断を表示します。
+              </p>
+            </div>
+          </div>
+          <label className="mt-4 block text-xs font-bold text-slate-300">余剰資金</label>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-slate-400">¥</span>
+            <input
+              inputMode="numeric"
+              value={surplusCash}
+              onChange={(e) => setSurplusCash(Math.max(0, Number(e.target.value.replace(/[^0-9]/g, "")) || 0))}
+              className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-right font-bold text-white outline-none focus:border-emerald-500"
+            />
+          </div>
+          <p className="mt-2 text-[10px] leading-4 text-slate-500">
+            BUY時は原則15〜25%を上限目安にし、Market Regimeとリスクで調整。Compliance未確認・対象外はBUYを止めます。
+          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-950/50 p-2 text-[10px] text-slate-400">
+            <span>最終更新 {formatJstTime(lastRefreshAt)} / {isJapanMarketOpenNow() ? "東証時間内" : "東証時間外"}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setAutoRefresh((v) => !v)} className={`rounded border px-2 py-1 font-bold ${autoRefresh ? "border-emerald-600 text-emerald-300" : "border-slate-700 text-slate-400"}`}>
+                15分自動更新 {autoRefresh ? "ON" : "OFF"}
+              </button>
+              <button onClick={() => loadData(false)} disabled={refreshing} className="rounded border border-slate-700 px-2 py-1 font-bold text-slate-300 disabled:opacity-50">
+                {refreshing ? "更新中" : "今すぐ更新"}
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] leading-4 text-slate-600">価格データは情報源の仕様により遅延する場合があります。自動更新はこの画面を開いている間だけ動作します。</p>
+        </div>
+
+        {signalAlerts.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <div className="flex items-center justify-between gap-3">
+              <b>シグナル変化</b>
+              <button onClick={() => setSignalAlerts([])} className="text-[10px] text-amber-100/70">クリア</button>
+            </div>
+            <div className="mt-2 space-y-1">{signalAlerts.map((x, i) => <p key={`${x}-${i}`}>{x}</p>)}</div>
           </div>
         )}
 
@@ -270,7 +666,7 @@ export default function EtfPage() {
 
         <div className="mb-4">
           <p className="mb-2 text-xs font-bold text-slate-400">Compliance</p>
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex flex-wrap gap-2 pb-2">
             {[
               ["ALL", "すべて"],
               ["ELIGIBLE", "取引可"],
@@ -298,7 +694,7 @@ export default function EtfPage() {
           </p>
         </div>
 
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
+        <div className="mb-5 flex flex-wrap gap-2 pb-2">
           {categories.map((item) => (
             <button
               key={item.value}
@@ -329,6 +725,20 @@ export default function EtfPage() {
         <div className="space-y-4">
           {visible.map((item, index) => {
             const isOpen = expanded === item.master.symbol;
+            const manual = manualCompliance[item.master.symbol];
+            const compliance = effectiveCompliance(item, manual);
+            const diversificationType = effectiveDiversificationType(item, manual);
+            const analysisForDecision = { ...item, compliance };
+            const holding = heldSymbols[item.master.symbol];
+            const decision = decideEtfTrade({
+              analysis: analysisForDecision,
+              surplusCash,
+              position: {
+                isHeld: Boolean(holding),
+                quantity: holding?.quantity ?? 0,
+                averagePrice: holding?.averagePrice ?? 0,
+              },
+            });
             return (
               <div
                 key={item.master.symbol}
@@ -354,13 +764,13 @@ export default function EtfPage() {
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${complianceClass(
-                      item.compliance.status
+                      compliance.status
                     )}`}
                   >
-                    {complianceLabel(item.compliance.status)}
+                    {complianceLabel(compliance.status)}
                   </span>
                   <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
-                    {item.diversificationType}
+                    {diversificationType}
                   </span>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${reboundClass(
@@ -370,6 +780,42 @@ export default function EtfPage() {
                     {reboundLabel(item.rebound.status)} {item.rebound.score.toFixed(0)}
                   </span>
                 </div>
+
+                <div className={`mt-4 rounded-xl border p-3 ${tradeActionClass(decision.action)}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold opacity-70">TRADE DECISION</p>
+                          <p className="mt-1 text-xl font-black">{tradeActionLabel(decision.action)}</p>
+                        </div>
+                        <div className="text-right text-xs">
+                          <p className="opacity-70">確信度</p>
+                          <p className="text-lg font-bold">{decision.confidence}%</p>
+                        </div>
+                      </div>
+                      {decision.action === "BUY" && decision.recommendedUnits > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg bg-slate-950/40 p-2">
+                            推奨投資額<br/><b className="text-sm">¥{decision.recommendedAmount.toLocaleString()}</b>
+                          </div>
+                          <div className="rounded-lg bg-slate-950/40 p-2">
+                            推奨口数<br/><b className="text-sm">{decision.recommendedUnits}口</b>
+                          </div>
+                        </div>
+                      )}
+                      {(decision.action === "SELL" || decision.action === "REDUCE") && decision.recommendedUnits > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg bg-slate-950/40 p-2">売却目安<br/><b>{decision.recommendedUnits}口</b></div>
+                          <div className="rounded-lg bg-slate-950/40 p-2">売却目安額<br/><b>¥{decision.recommendedAmount.toLocaleString()}</b></div>
+                        </div>
+                      )}
+                      {holding && decision.positionValue > 0 && (
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg bg-slate-950/40 p-2">評価額<br/><b>¥{decision.positionValue.toLocaleString()}</b></div>
+                          <div className="rounded-lg bg-slate-950/40 p-2">含み損益<br/><b className={decision.unrealizedPnl >= 0 ? "text-emerald-300" : "text-red-300"}>{decision.unrealizedPnl >= 0 ? "+" : ""}¥{decision.unrealizedPnl.toLocaleString()} ({decision.unrealizedPnlPercent >= 0 ? "+" : ""}{decision.unrealizedPnlPercent.toFixed(1)}%)</b></div>
+                        </div>
+                      )}
+                      <p className="mt-2 text-[11px] leading-5 opacity-80">{decision.reasons.slice(0, 2).join(" / ")}</p>
+                    </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-3">
@@ -425,6 +871,86 @@ export default function EtfPage() {
 
                 {isOpen && (
                   <div className="mt-4 space-y-4">
+                    <div className="rounded-xl border border-emerald-800 bg-emerald-950/20 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-white">保有状況</h3>
+                          <p className="mt-1 text-[11px] text-slate-400">保有中ならSELL / REDUCE / HOLD判定に切り替わります。</p>
+                        </div>
+                        <button
+                          onClick={() =>
+                            setHeldSymbols((prev) => {
+                              const next = { ...prev };
+                              if (next[item.master.symbol]) delete next[item.master.symbol];
+                              else next[item.master.symbol] = { quantity: 1, averagePrice: item.metrics.price };
+                              return next;
+                            })
+                          }
+                          className={`rounded-lg border px-3 py-2 text-xs font-bold ${
+                            heldSymbols[item.master.symbol]
+                              ? "border-emerald-500 bg-emerald-500/20 text-emerald-200"
+                              : "border-slate-700 bg-slate-900 text-slate-300"
+                          }`}
+                        >
+                          {heldSymbols[item.master.symbol] ? "保有中" : "未保有"}
+                        </button>
+                      </div>
+                      {heldSymbols[item.master.symbol] && (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <label className="text-[11px] text-slate-400">
+                            保有口数
+                            <input
+                              inputMode="numeric"
+                              value={heldSymbols[item.master.symbol].quantity}
+                              onChange={(e) =>
+                                setHeldSymbols((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    ...prev[item.master.symbol],
+                                    quantity: Math.max(0, Number(e.target.value.replace(/[^0-9]/g, "")) || 0),
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-right text-white"
+                            />
+                          </label>
+                          <label className="text-[11px] text-slate-400">
+                            平均取得価格
+                            <input
+                              inputMode="decimal"
+                              value={heldSymbols[item.master.symbol].averagePrice}
+                              onChange={(e) =>
+                                setHeldSymbols((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    ...prev[item.master.symbol],
+                                    averagePrice: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, "")) || 0),
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-right text-white"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      <div className="mt-4 border-t border-emerald-800/60 pt-3">
+                        <p className="text-xs font-bold text-emerald-200">実際の売買を記録</p>
+                        <p className="mt-1 text-[10px] text-slate-500">Monexで約定した後に記録してください。保有・余剰資金・売買履歴を連動します。</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <label className="text-[10px] text-slate-400">口数
+                            <input inputMode="numeric" value={tradeDrafts[item.master.symbol]?.quantity ?? 1} onChange={(e) => setTradeDrafts((prev) => ({ ...prev, [item.master.symbol]: { quantity: Math.max(0, Number(e.target.value.replace(/[^0-9]/g, "")) || 0), price: prev[item.master.symbol]?.price ?? item.metrics.price } }))} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-right text-white" />
+                          </label>
+                          <label className="text-[10px] text-slate-400">約定価格
+                            <input inputMode="decimal" value={tradeDrafts[item.master.symbol]?.price ?? item.metrics.price} onChange={(e) => setTradeDrafts((prev) => ({ ...prev, [item.master.symbol]: { quantity: prev[item.master.symbol]?.quantity ?? 1, price: Math.max(0, Number(e.target.value.replace(/[^0-9.]/g, "")) || 0) } }))} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-right text-white" />
+                          </label>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button onClick={() => recordTrade(item, decision.action, "BUY")} className="rounded-lg border border-emerald-600 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300">BUY約定を記録</button>
+                          <button onClick={() => recordTrade(item, decision.action, "SELL")} disabled={!heldSymbols[item.master.symbol]} className="rounded-lg border border-red-700 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 disabled:opacity-40">SELL約定を記録</button>
+                        </div>
+                      </div>
+                    </div>
                     <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
                       <div className="mb-4 rounded-lg bg-slate-900/70 p-3 text-xs">
                         <span className="text-slate-500">過熱Penalty</span><br/>
@@ -487,24 +1013,237 @@ export default function EtfPage() {
                     <div className="rounded-xl border border-violet-800 bg-violet-950/30 p-4">
                       <h3 className="font-bold text-white">Compliance</h3>
                       <p className="mt-2 text-sm font-bold text-violet-200">
-                        {complianceLabel(item.compliance.status)}
+                        {complianceLabel(compliance.status)}
                       </p>
                       <p className="mt-2 text-xs leading-5 text-violet-100/80">
-                        {item.compliance.reasons.join(" / ")}
+                        {compliance.reasons.join(" / ")}
                       </p>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-lg bg-slate-900/60 p-2">
                           構成銘柄数<br />
-                          <b>{item.compliance.holdingsCount ?? "未確認"}</b>
+                          <b>{compliance.holdingsCount ?? "未確認"}</b>
                         </div>
                         <div className="rounded-lg bg-slate-900/60 p-2">
                           最大構成比<br />
                           <b>
-                            {item.compliance.maxHoldingWeight !== null
-                              ? `${item.compliance.maxHoldingWeight.toFixed(1)}%`
+                            {compliance.maxHoldingWeight !== null
+                              ? `${compliance.maxHoldingWeight.toFixed(1)}%`
                               : "未確認"}
                           </b>
                         </div>
+                      </div>
+
+                      <div className={`mt-3 rounded-lg border p-3 text-[10px] leading-5 ${
+                        compliance.provenanceVerified && !compliance.stale
+                          ? "border-emerald-700/50 bg-emerald-950/20 text-emerald-100"
+                          : "border-amber-700/50 bg-amber-950/20 text-amber-100"
+                      }`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <b>Complianceデータ証跡</b>
+                          <span className="font-bold">
+                            {compliance.provenanceVerified && !compliance.stale ? "確認済み" : "要確認"}
+                          </span>
+                        </div>
+                        <p>取得方法: {manual ? "手動確認" : "登録データ"}</p>
+                        <p>情報源: {compliance.sourceName || compliance.sourceNote || "未登録"}</p>
+                        <p>基準日/確認日: {compliance.verifiedAt || compliance.sourceDate || "未登録"}</p>
+                        {compliance.sourceUrl && /^https?:\/\//.test(compliance.sourceUrl) && (
+                          <a
+                            href={compliance.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline underline-offset-2"
+                          >
+                            参照元を開く ↗
+                          </a>
+                        )}
+                        {!manual && compliance.sourceNote && compliance.sourceName && (
+                          <p className="mt-1 text-slate-400">{compliance.sourceNote}</p>
+                        )}
+                        <p className="mt-1 opacity-80">
+                          取引可の判定には、数値だけでなく情報源と日付の証跡が必要です。90日を超えた情報は再確認扱いにします。
+                        </p>
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-violet-700/50 bg-slate-950/40 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-bold text-violet-200">手動Compliance確認</p>
+                            <p className="mt-1 text-[10px] leading-4 text-slate-400">
+                              自動取得できない場合のみ、直近ファクトシート等で確認した値を入力してください。
+                            </p>
+                          </div>
+                          {manualCompliance[item.master.symbol] && (
+                            <button
+                              onClick={() =>
+                                setManualCompliance((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.master.symbol];
+                                  return next;
+                                })
+                              }
+                              className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-[10px] text-slate-300"
+                            >
+                              手入力を削除
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <label className="text-[10px] text-slate-400">
+                            構成銘柄数
+                            <input
+                              inputMode="numeric"
+                              placeholder="例: 35"
+                              value={manualCompliance[item.master.symbol]?.holdingsCount ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9]/g, "");
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: raw ? Number(raw) : null,
+                                    maxHoldingWeight: prev[item.master.symbol]?.maxHoldingWeight ?? null,
+                                    derivativeBased: prev[item.master.symbol]?.derivativeBased ?? null,
+                                    checkedAt: prev[item.master.symbol]?.checkedAt ?? new Date().toISOString().slice(0, 10),
+                                    sourceName: prev[item.master.symbol]?.sourceName ?? "",
+                                    sourceUrl: prev[item.master.symbol]?.sourceUrl ?? "",
+                                  },
+                                }));
+                              }}
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-right text-xs text-white"
+                            />
+                          </label>
+                          <label className="text-[10px] text-slate-400">
+                            最大構成比率 (%)
+                            <input
+                              inputMode="decimal"
+                              placeholder="例: 8.4"
+                              value={manualCompliance[item.master.symbol]?.maxHoldingWeight ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: prev[item.master.symbol]?.holdingsCount ?? null,
+                                    maxHoldingWeight: raw ? Number(raw) : null,
+                                    derivativeBased: prev[item.master.symbol]?.derivativeBased ?? null,
+                                    checkedAt: prev[item.master.symbol]?.checkedAt ?? new Date().toISOString().slice(0, 10),
+                                    sourceName: prev[item.master.symbol]?.sourceName ?? "",
+                                    sourceUrl: prev[item.master.symbol]?.sourceUrl ?? "",
+                                  },
+                                }));
+                              }}
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-right text-xs text-white"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-2">
+                          <label className="text-[10px] text-slate-400">
+                            情報源（必須）
+                            <input
+                              placeholder="例: Global X 公式ファクトシート"
+                              value={manualCompliance[item.master.symbol]?.sourceName ?? ""}
+                              onChange={(e) =>
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: prev[item.master.symbol]?.holdingsCount ?? null,
+                                    maxHoldingWeight: prev[item.master.symbol]?.maxHoldingWeight ?? null,
+                                    derivativeBased: prev[item.master.symbol]?.derivativeBased ?? null,
+                                    checkedAt: prev[item.master.symbol]?.checkedAt ?? new Date().toISOString().slice(0, 10),
+                                    sourceName: e.target.value,
+                                    sourceUrl: prev[item.master.symbol]?.sourceUrl ?? "",
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-2">
+                          <label className="text-[10px] text-slate-400">
+                            参照URL（任意）
+                            <input
+                              inputMode="url"
+                              placeholder="https://..."
+                              value={manualCompliance[item.master.symbol]?.sourceUrl ?? ""}
+                              onChange={(e) =>
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: prev[item.master.symbol]?.holdingsCount ?? null,
+                                    maxHoldingWeight: prev[item.master.symbol]?.maxHoldingWeight ?? null,
+                                    derivativeBased: prev[item.master.symbol]?.derivativeBased ?? null,
+                                    checkedAt: prev[item.master.symbol]?.checkedAt ?? new Date().toISOString().slice(0, 10),
+                                    sourceName: prev[item.master.symbol]?.sourceName ?? "",
+                                    sourceUrl: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <label className="text-[10px] text-slate-400">
+                            デリバティブ投資対象
+                            <select
+                              value={
+                                manualCompliance[item.master.symbol]?.derivativeBased === true
+                                  ? "YES"
+                                  : manualCompliance[item.master.symbol]?.derivativeBased === false
+                                    ? "NO"
+                                    : "UNKNOWN"
+                              }
+                              onChange={(e) =>
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: prev[item.master.symbol]?.holdingsCount ?? null,
+                                    maxHoldingWeight: prev[item.master.symbol]?.maxHoldingWeight ?? null,
+                                    derivativeBased: e.target.value === "YES" ? true : e.target.value === "NO" ? false : null,
+                                    checkedAt: prev[item.master.symbol]?.checkedAt ?? new Date().toISOString().slice(0, 10),
+                                    sourceName: prev[item.master.symbol]?.sourceName ?? "",
+                                    sourceUrl: prev[item.master.symbol]?.sourceUrl ?? "",
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white"
+                            >
+                              <option value="UNKNOWN">未確認</option>
+                              <option value="NO">いいえ</option>
+                              <option value="YES">はい</option>
+                            </select>
+                          </label>
+                          <label className="text-[10px] text-slate-400">
+                            確認日
+                            <input
+                              type="date"
+                              value={manualCompliance[item.master.symbol]?.checkedAt ?? ""}
+                              onChange={(e) =>
+                                setManualCompliance((prev) => ({
+                                  ...prev,
+                                  [item.master.symbol]: {
+                                    holdingsCount: prev[item.master.symbol]?.holdingsCount ?? null,
+                                    maxHoldingWeight: prev[item.master.symbol]?.maxHoldingWeight ?? null,
+                                    derivativeBased: prev[item.master.symbol]?.derivativeBased ?? null,
+                                    checkedAt: e.target.value,
+                                    sourceName: prev[item.master.symbol]?.sourceName ?? "",
+                                    sourceUrl: prev[item.master.symbol]?.sourceUrl ?? "",
+                                  },
+                                }))
+                              }
+                              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-white"
+                            />
+                          </label>
+                        </div>
+
+                        <p className="mt-3 text-[10px] leading-4 text-violet-100/70">
+                          判定: 21銘柄以上かつ最大構成比率25%未満なら取引可。ただし取引可にするには情報源・確認日も必須です。25%以上または21銘柄未満は事前承認。
+                        </p>
                       </div>
                     </div>
 

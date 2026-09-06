@@ -12,6 +12,16 @@ const sections = [
     ],
   },
   {
+    title: "Trade Decision（BUY / WAIT / HOLD / REDUCE / SELL）",
+    body: [
+      "Trade Decisionは、短期Score v2・中期Score v2・Exit・Rebound・Market Regime・Complianceを統合した実戦用の最終判定です。単独スコアではなく複数条件が同時に揃った時だけBUYを出します。",
+      "未保有ETFでは、短期Signal=SHORT_BUY、短期Score 75以上、中期Score 58以上、Exit 55未満、Danger Penalty 15未満を基本BUY条件にします。過熱・AVOID・PANICではWAITを優先します。",
+      "保有ETFでは、新規BUY条件ではなくExitを優先し、Exit 60以上でREDUCE、75以上でSELL、それ未満はHOLDを基本にします。",
+      "推奨投資額は余剰資金の15〜25%を基準に、確信度・Market Regime・短期リスクで下方調整し、現在価格から購入可能な口数に丸めます。",
+      "Complianceが対象外・要確認ならBUYを停止し、事前承認が必要なETFは承認前にBUYを出しません。",
+    ],
+  },
+  {
     title: "Compliance",
     body: [
       "投資判断とは独立した社内ルール判定です。分析Scoreが高くてもCompliance判定を上書きしません。",

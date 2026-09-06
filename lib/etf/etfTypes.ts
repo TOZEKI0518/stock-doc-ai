@@ -14,6 +14,10 @@ export type EtfComplianceProfile = {
   diversificationType?: EtfDiversificationType;
   diversificationScore?: number | null;
   sourceNote?: string | null;
+  sourceName?: string | null;
+  sourceUrl?: string | null;
+  sourceDate?: string | null;
+  verifiedAt?: string | null;
 };
 
 export type EtfComplianceResult = {
@@ -22,6 +26,13 @@ export type EtfComplianceResult = {
   holdingsCount: number | null;
   maxHoldingWeight: number | null;
   derivativeBased: boolean | null;
+  sourceName: string | null;
+  sourceUrl: string | null;
+  sourceDate: string | null;
+  verifiedAt: string | null;
+  sourceNote: string | null;
+  provenanceVerified: boolean;
+  stale: boolean;
 };
 
 export type EtfReboundStatus = "FALLING" | "OVERSOLD" | "PREPARING" | "CONFIRMED" | "EXTENDED";
