@@ -26,3 +26,13 @@ Then verify:
 - / : home with 株ランキング and ETFランキング
 - /stocks : stock analysis + stock-only tools
 - /etf : ETF ranking without v1/v2 comparison UI
+<<<<<<< HEAD
+=======
+
+
+2026-09-06 dashboard / ETF score guide refresh
+- AI Dashboard order changed to Stocks -> ETF for top-page consistency.
+- ETF score guide updated to reflect Mid Score v2 overextension logic.
+- Short Score guide corrected to v2 pullback / mean-reversion / stabilization logic.
+- ETF detail now displays Short Score v2 component bars and Danger Penalty.
+>>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)

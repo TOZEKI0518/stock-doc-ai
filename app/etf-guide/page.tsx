@@ -31,7 +31,8 @@ const sections = [
     title: "中期Score",
     body: [
       "100点満点で、中期的な強さを評価します。",
-      "配点は Trend 30% / Momentum 25% / Risk 20% / Liquidity 15% / Market Regime Fit 10% です。",
+      "配点は Trend 30% / Momentum 25% / Risk 20% / Liquidity 15% / Market Regime Fit 10% です。v2では移動平均から大きく上方乖離した状態や急騰を過度に評価しないよう、健全な範囲で上限を設けています。",
+      "さらに20日線+5%超、50日線+10%超、7日+6%超、20日+12%超などの上昇過熱には最大25点のOverextension Penaltyを入れ、高値追いを抑制します。",
       "基本判定は Score 78以上かつ Exit 40未満で「買い」、Score 58以上かつ Exit 55未満で「保有」。それ以外は「待機」です。Exitが60以上なら「縮小」、75以上なら「売却」が優先されます。内部コードは ACCUMULATE / HOLD / WATCH / REDUCE / EXIT のままです。",
       "Rebound Scoreは中期Scoreとは独立しています。中期Scoreが低くても、急落後の反発だけを狙えるケースがあります。",
     ],
@@ -39,10 +40,11 @@ const sections = [
   {
     title: "短期Score",
     body: [
-      "5〜10営業日程度の短期エントリー向けの100点満点スコアです。",
-      "7日モメンタム、20日トレンド、上昇加速、リスク、Market Regime、流動性などを使い、短期的な入りやすさを評価します。",
-      "7日リターンが高すぎる場合は、すでに上がり過ぎている可能性があるため過熱ペナルティを入れています。",
-      "中期Scoreが高くても短期Scoreが低い場合は『中期では強いが短期では高値追い注意』、逆なら『中期トレンドは弱いが短期反発候補』という読み方ができます。",
+      "5〜10営業日程度の短期エントリー向けの100点満点スコアです。現在のv2は『強いものを追いかける』のではなく、『管理された押し目から安定化・平均回帰へ向かう局面』を高く評価します。",
+      "配点は 7日押し目 25% / 20日線への平均回帰 20% / 値動きの安定化 20% / 中期トレンド環境 10% / リスク 10% / Market Regime 10% / 流動性 5% です。",
+      "7日で+5%超、20日線から+5%超などの高値追い、急落中の『落ちるナイフ』、20日トレンドの極端な悪化、PANIC相場にはDanger Penaltyを入れます。",
+      "短期Score 75以上かつPenalty 15未満で『買い』、62以上かつPenalty 22未満で『準備』が基本です。7日+10%超または20日線+9%超は『過熱』、PANIC・Penalty 35以上・Score 40未満は『回避』を優先します。",
+      "中期Scoreが高くても短期Scoreが低い場合は『中期では強いが今は高値追い注意』、逆なら『中期の強さは限定的でも押し目反発の短期候補』という読み方ができます。",
     ],
   },
   {
@@ -181,8 +183,13 @@ export default function EtfGuidePage() {
         <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm leading-7 text-amber-100">
           <p className="font-bold">重要</p>
           <p className="mt-2">
+<<<<<<< HEAD
             Scoreは将来の利益を保証するものではありません。Reboundは既存の価格指標とMarket Regimeを使って反発状態を評価します。
             今後、RSI・Market Breadth・金利・為替を追加し、ETF Learningで実際の7日/10日リターンや最大下落率と比較しながら改善します。
+=======
+            Scoreは将来の利益を保証するものではありません。現在の中期Score / 短期Scoreはv2を表示しており、過去のv1は学習比較用として内部に保持しています。Reboundは既存の価格指標とMarket Regimeを使って反発状態を評価します。
+            今後、ETF Learningで実際の7日/10日リターンや最大下落率と比較しながら、必要に応じて閾値・配点を更新します。
+>>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)
           </p>
         </div>
       </div>

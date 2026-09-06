@@ -441,9 +441,36 @@ export default function EtfPage() {
                     </div>
 
                     <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
+<<<<<<< HEAD
                       <h3 className="font-bold text-white">短期Score</h3>
                       <div className="mt-3 rounded-lg bg-slate-900/70 p-3 text-xs">
                         <span className="text-slate-500">短期Score</span><br/><b className="text-lg">{item.shortTermScore.toFixed(1)}</b>
+=======
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-white">短期Score v2</h3>
+                          <p className="mt-1 text-[11px] text-cyan-200/70">押し目・平均回帰・安定化を重視</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold">{item.shortTermScore.toFixed(1)}</p>
+                          <p className={`text-xs font-bold ${shortSignalClass(item.shortTermSignal)}`}>
+                            {shortSignalLabel(item.shortTermSignal)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <ScoreRow label="7日押し目" score={item.shortTermBreakdown.momentum7d} />
+                        <ScoreRow label="20日線 平均回帰" score={item.shortTermBreakdown.momentum20d} />
+                        <ScoreRow label="値動き安定化" score={item.shortTermBreakdown.acceleration} />
+                        <ScoreRow label="中期トレンド環境" score={item.shortTermBreakdown.trend} />
+                        <ScoreRow label="リスク" score={item.shortTermBreakdown.risk} />
+                        <ScoreRow label="市場環境" score={item.shortTermBreakdown.regimeFit} />
+                        <ScoreRow label="流動性" score={item.shortTermBreakdown.liquidity} />
+                      </div>
+                      <div className="mt-4 rounded-lg bg-slate-900/70 p-3 text-xs">
+                        <span className="text-slate-500">Danger Penalty</span><br/>
+                        <b className="text-lg text-orange-300">-{item.shortTermOverheatPenalty.toFixed(1)}</b>
+>>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)
                       </div>
                       <p className="mt-3 text-xs leading-5 text-cyan-100/80">{item.shortTermReasons.join(" / ")}</p>
                     </div>
