@@ -2,9 +2,16 @@ import Link from "next/link";
 
 const menuItems = [
   {
-    href: "/",
-    icon: "🔍",
-    title: "銘柄分析",
+    href: "/etf",
+    icon: "📊",
+    title: "ETFランキング",
+    description: "ETF専用スコアで短期・中期・反発・Complianceを確認します。",
+    className: "border-cyan-700 bg-cyan-950",
+  },
+  {
+    href: "/stocks",
+    icon: "📈",
+    title: "株ランキング・個別株分析",
     description: "コード・会社名・テーマで検索してAI分析します。",
     className: "border-emerald-700 bg-emerald-950",
   },
@@ -73,7 +80,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-4">
-          <h2 className="font-bold text-white mb-2">Version 1.0 状態</h2>
+          <h2 className="font-bold text-white mb-2">運用状況</h2>
           <ul className="text-sm text-slate-200 leading-7">
             <li>• 毎日23時にSupabaseへ自動保存</li>
             <li>• データ蓄積後、AI学習レポートで成績確認</li>

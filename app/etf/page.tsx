@@ -185,7 +185,7 @@ export default function EtfPage() {
           <p className="mb-1 text-xs font-bold text-emerald-300">StockDoc AI Pro</p>
           <h1 className="mb-2 text-3xl font-bold">日本株ETFランキング</h1>
           <p className="text-sm text-slate-300">
-            株式画面と同じ見方で、ETFの中期・短期・反発・Complianceを確認できます。
+            ETF専用ロジックで、中期・短期・反発・Complianceを確認できます。
           </p>
         </div>
 
@@ -195,8 +195,8 @@ export default function EtfPage() {
             className="rounded-2xl border border-slate-700 bg-slate-900 p-4"
           >
             <div className="text-xl">←</div>
-            <div className="mt-1 font-bold">株式分析</div>
-            <div className="mt-1 text-xs text-slate-400">ホームへ戻る</div>
+            <div className="mt-1 font-bold">ホーム</div>
+            <div className="mt-1 text-xs text-slate-400">トップへ戻る</div>
           </Link>
           <Link
             href="/etf-guide"
@@ -373,7 +373,7 @@ export default function EtfPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-3">
-                    <p className="text-xs text-emerald-200">中期Score v2</p>
+                    <p className="text-xs text-emerald-200">中期Score</p>
                     <div className="mt-1 flex items-end justify-between">
                       <p className="text-2xl font-bold">{item.score.toFixed(1)}</p>
                       <p className={`text-sm font-bold ${signalClass(item.signal)}`}>
@@ -383,7 +383,7 @@ export default function EtfPage() {
                   </div>
 
                   <div className="rounded-xl border border-cyan-800 bg-cyan-950/50 p-3">
-                    <p className="text-xs text-cyan-200">短期Score v2</p>
+                    <p className="text-xs text-cyan-200">短期Score</p>
                     <div className="mt-1 flex items-end justify-between">
                       <p className="text-2xl font-bold">{item.shortTermScore.toFixed(1)}</p>
                       <p
@@ -426,17 +426,11 @@ export default function EtfPage() {
                 {isOpen && (
                   <div className="mt-4 space-y-4">
                     <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-                      <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg bg-slate-900/70 p-3">
-                          <span className="text-slate-500">旧 v1 Score</span><br/>
-                          <b className="text-lg">{item.legacyScore.toFixed(1)}</b>
-                        </div>
-                        <div className="rounded-lg bg-slate-900/70 p-3">
-                          <span className="text-slate-500">過熱Penalty</span><br/>
-                          <b className="text-lg text-orange-300">-{item.overextensionPenalty.toFixed(1)}</b>
-                        </div>
+                      <div className="mb-4 rounded-lg bg-slate-900/70 p-3 text-xs">
+                        <span className="text-slate-500">過熱Penalty</span><br/>
+                        <b className="text-lg text-orange-300">-{item.overextensionPenalty.toFixed(1)}</b>
                       </div>
-                      <h3 className="mb-3 font-bold text-white">中期スコア v2 内訳</h3>
+                      <h3 className="mb-3 font-bold text-white">中期スコア内訳</h3>
                       <div className="space-y-3">
                         <ScoreRow label="トレンド" score={item.breakdown.trend} />
                         <ScoreRow label="モメンタム" score={item.breakdown.momentum} />
@@ -447,10 +441,9 @@ export default function EtfPage() {
                     </div>
 
                     <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
-                      <h3 className="font-bold text-white">短期Score v2</h3>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-lg bg-slate-900/70 p-3"><span className="text-slate-500">現 v2</span><br/><b className="text-lg">{item.shortTermScore.toFixed(1)}</b></div>
-                        <div className="rounded-lg bg-slate-900/70 p-3"><span className="text-slate-500">旧 v1</span><br/><b className="text-lg">{item.legacyShortTermScore.toFixed(1)}</b></div>
+                      <h3 className="font-bold text-white">短期Score</h3>
+                      <div className="mt-3 rounded-lg bg-slate-900/70 p-3 text-xs">
+                        <span className="text-slate-500">短期Score</span><br/><b className="text-lg">{item.shortTermScore.toFixed(1)}</b>
                       </div>
                       <p className="mt-3 text-xs leading-5 text-cyan-100/80">{item.shortTermReasons.join(" / ")}</p>
                     </div>

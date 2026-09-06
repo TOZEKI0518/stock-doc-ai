@@ -69,7 +69,7 @@ const sections = [
     title: "Rebound Score",
     body: [
       "下落局面からの反発を0〜100で評価します。底値そのものを当てるのではなく、反発の準備と確認を段階的に判定するための指標です。",
-      "v1の配点は Oversold 25% / Reversal 30% / Trend Repair 30% / Market Regime 15% です。売られ過ぎだけでは買いシグナルにせず、反転とトレンド修復を重くしています。",
+      "現行ロジックの配点は Oversold 25% / Reversal 30% / Trend Repair 30% / Market Regime 15% です。売られ過ぎだけでは買いシグナルにせず、反転とトレンド修復を重くしています。",
       "FALLING: まだ下落優勢 / OVERSOLD: 売られ過ぎ候補 / PREPARING: 反発準備 / CONFIRMED: 反発確認 / EXTENDED: 反発後に上がり過ぎ、という順に読みます。",
       "実戦では短期Scoreが高く、かつReboundがPREPARINGからCONFIRMEDへ改善する局面を特に注目します。OVERSOLDだけでの買いは避けます。",
     ],
@@ -181,7 +181,7 @@ export default function EtfGuidePage() {
         <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm leading-7 text-amber-100">
           <p className="font-bold">重要</p>
           <p className="mt-2">
-            Scoreは将来の利益を保証するものではありません。Rebound v1は既存の価格指標とMarket Regimeを使った初期ロジックです。
+            Scoreは将来の利益を保証するものではありません。Reboundは既存の価格指標とMarket Regimeを使って反発状態を評価します。
             今後、RSI・Market Breadth・金利・為替を追加し、ETF Learningで実際の7日/10日リターンや最大下落率と比較しながら改善します。
           </p>
         </div>

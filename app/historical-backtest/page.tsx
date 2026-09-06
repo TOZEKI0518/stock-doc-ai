@@ -77,7 +77,7 @@ export default function HistoricalBacktestPage() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="max-w-md mx-auto p-6">
-        <Link href="/" className="text-emerald-300 underline">
+        <Link href="/stocks" className="text-emerald-300 underline">
           ← ホームへ戻る
         </Link>
 

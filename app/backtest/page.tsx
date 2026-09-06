@@ -93,7 +93,7 @@ export default function BacktestPage() {
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="max-w-md mx-auto p-6">
         <div className="mb-4">
-          <Link href="/" className="text-emerald-300 underline">
+          <Link href="/stocks" className="text-emerald-300 underline">
             ← ホームへ戻る
           </Link>
         </div>

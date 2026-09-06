@@ -200,7 +200,7 @@ export default function LearningPage() {
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-md p-6">
         <div className="mb-4">
-          <Link href="/" className="text-emerald-300 underline">
+          <Link href="/stocks" className="text-emerald-300 underline">
             ← 株ドックAIへ戻る
           </Link>
         </div>

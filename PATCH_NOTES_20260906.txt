@@ -1,0 +1,28 @@
+StockDoc AI Pro UI hierarchy update - 2026-09-06
+
+Changes
+1. Home page reorganized into two equal top-level entrances:
+   - 株ランキング (/stocks)
+   - ETFランキング (/etf)
+2. Existing individual-stock analysis moved from / to /stocks.
+3. Stock-only tools moved under the stock hierarchy:
+   - AI学習
+   - バックテスト
+   - Strategy Lab
+4. Dashboard and glossary remain common functions on the home page.
+5. ETF UI now shows only the current scoring logic; legacy v1 comparison labels/cards were removed from user-facing screens.
+6. ETF Short-Term Learning now presents only the current score/backtest view.
+7. Dashboard links updated for the new hierarchy.
+
+Notes
+- Legacy v1 calculation code is intentionally retained internally for now to avoid breaking stored historical data/API compatibility, but it is no longer shown in the main UI.
+- .git, .next, node_modules, and .env.local are not included.
+
+Local check
+npm install
+npm run dev
+
+Then verify:
+- / : home with 株ランキング and ETFランキング
+- /stocks : stock analysis + stock-only tools
+- /etf : ETF ranking without v1/v2 comparison UI
