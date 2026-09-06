@@ -441,11 +441,6 @@ export default function EtfPage() {
                     </div>
 
                     <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
-<<<<<<< HEAD
-                      <h3 className="font-bold text-white">短期Score</h3>
-                      <div className="mt-3 rounded-lg bg-slate-900/70 p-3 text-xs">
-                        <span className="text-slate-500">短期Score</span><br/><b className="text-lg">{item.shortTermScore.toFixed(1)}</b>
-=======
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <h3 className="font-bold text-white">短期Score v2</h3>
@@ -470,7 +465,6 @@ export default function EtfPage() {
                       <div className="mt-4 rounded-lg bg-slate-900/70 p-3 text-xs">
                         <span className="text-slate-500">Danger Penalty</span><br/>
                         <b className="text-lg text-orange-300">-{item.shortTermOverheatPenalty.toFixed(1)}</b>
->>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)
                       </div>
                       <p className="mt-3 text-xs leading-5 text-cyan-100/80">{item.shortTermReasons.join(" / ")}</p>
                     </div>

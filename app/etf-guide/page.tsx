@@ -183,13 +183,8 @@ export default function EtfGuidePage() {
         <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm leading-7 text-amber-100">
           <p className="font-bold">重要</p>
           <p className="mt-2">
-<<<<<<< HEAD
-            Scoreは将来の利益を保証するものではありません。Reboundは既存の価格指標とMarket Regimeを使って反発状態を評価します。
-            今後、RSI・Market Breadth・金利・為替を追加し、ETF Learningで実際の7日/10日リターンや最大下落率と比較しながら改善します。
-=======
             Scoreは将来の利益を保証するものではありません。現在の中期Score / 短期Scoreはv2を表示しており、過去のv1は学習比較用として内部に保持しています。Reboundは既存の価格指標とMarket Regimeを使って反発状態を評価します。
             今後、ETF Learningで実際の7日/10日リターンや最大下落率と比較しながら、必要に応じて閾値・配点を更新します。
->>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)
           </p>
         </div>
       </div>

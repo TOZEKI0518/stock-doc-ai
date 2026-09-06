@@ -2,16 +2,6 @@ import Link from "next/link";
 
 const menuItems = [
   {
-<<<<<<< HEAD
-    href: "/etf",
-    icon: "📊",
-    title: "ETFランキング",
-    description: "ETF専用スコアで短期・中期・反発・Complianceを確認します。",
-    className: "border-cyan-700 bg-cyan-950",
-  },
-  {
-=======
->>>>>>> 5e64aef (Unify V2 and reorganize stock ETF hierarchy)
     href: "/stocks",
     icon: "📈",
     title: "株ランキング・個別株分析",
