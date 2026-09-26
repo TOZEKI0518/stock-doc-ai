@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { analyzeEtfShortTerm, analyzeEtfShortTermV1 } from "@/lib/etf/etfShortTermScoring";
+import { analyzeEtfRebound } from "@/lib/etf/etfRebound";
 import type { EtfMasterItem, EtfPriceMetrics } from "@/lib/etf/etfTypes";
 import type { MarketRegime } from "@/lib/market";
 
@@ -23,6 +24,7 @@ type Row = {
   strategy: string | null;
   price: number | string | null;
   market_regime: string | null;
+  etf_score: number | string | null;
   short_term_score: number | string | null;
   short_term_signal: string | null;
   short_term_breakdown: ShortBreakdown | null;
@@ -51,6 +53,7 @@ export type ShortLearningTrade = {
   endPrice: number;
   endReturn: number;
   shortTermScore: number;
+  midTermScore: number | null;
   shortTermSignal: string;
   marketRegime: string;
   scoreVersion: string;
@@ -61,6 +64,24 @@ export type ShortLearningTrade = {
   mfe: number;
   mae: number;
   breakdown: Record<string, number | null>;
+  reboundStatus: string;
+  reboundScore: number;
+};
+
+export type FactorComparison = {
+  factor: string;
+  successAverage: number;
+  failureAverage: number;
+  difference: number;
+};
+
+export type HighScoreDiagnostic = {
+  count: number;
+  targetHitRate: number;
+  averageEndReturn: number;
+  averageMfe: number;
+  averageMae: number;
+  factors: FactorComparison[];
 };
 
 export type ShortLearningBucket = {
@@ -121,7 +142,7 @@ async function fetchRows(): Promise<Row[]> {
   while (true) {
     const { data, error } = await supabaseAdmin
       .from("etf_snapshots")
-      .select("snapshot_date,symbol,name,category,strategy,price,market_regime,short_term_score,short_term_signal,short_term_breakdown,short_term_overheat_penalty,short_term_score_version,return_7d,return_20d,return_60d,return_120d,distance_ma20,distance_ma50,distance_ma200,volatility_20d,drawdown_from_high,average_volume_20d")
+      .select("snapshot_date,symbol,name,category,strategy,price,market_regime,etf_score,short_term_score,short_term_signal,short_term_breakdown,short_term_overheat_penalty,short_term_score_version,return_7d,return_20d,return_60d,return_120d,distance_ma20,distance_ma50,distance_ma200,volatility_20d,drawdown_from_high,average_volume_20d")
       .order("snapshot_date", { ascending: true })
       .order("symbol", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -134,9 +155,11 @@ async function fetchRows(): Promise<Row[]> {
   return rows;
 }
 
-function metricsFromRow(base: Row): EtfPriceMetrics {
+function metricsFromRow(base: Row, previousPrice: number | null = null): EtfPriceMetrics {
+  const price = num(base.price) ?? 0;
+  const changePercent1d = previousPrice !== null && previousPrice > 0 ? ret(previousPrice, price) : null;
   return {
-    asOf: base.snapshot_date, price: num(base.price) ?? 0, previousClose: null, changePercent1d: null,
+    asOf: base.snapshot_date, price, previousClose: previousPrice, changePercent1d,
     return7d: num(base.return_7d), return20d: num(base.return_20d), return60d: num(base.return_60d), return120d: num(base.return_120d),
     movingAverage20: null, movingAverage50: null, movingAverage200: null,
     distanceFromMa20: num(base.distance_ma20), distanceFromMa50: num(base.distance_ma50), distanceFromMa200: num(base.distance_ma200),
@@ -144,8 +167,21 @@ function metricsFromRow(base: Row): EtfPriceMetrics {
   };
 }
 function itemFromRow(base: Row) { return { category: (base.category ?? "CORE") } as EtfMasterItem; }
-function deriveV1(base: Row) { return analyzeEtfShortTermV1(itemFromRow(base), metricsFromRow(base), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
-function deriveV2(base: Row) { return analyzeEtfShortTerm(itemFromRow(base), metricsFromRow(base), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
+function deriveV1(base: Row, previousPrice: number | null = null) { return analyzeEtfShortTermV1(itemFromRow(base), metricsFromRow(base, previousPrice), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
+function deriveV2(base: Row, previousPrice: number | null = null) { return analyzeEtfShortTerm(itemFromRow(base), metricsFromRow(base, previousPrice), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
+function deriveRebound(base: Row, previousPrice: number | null = null) { return analyzeEtfRebound(metricsFromRow(base, previousPrice), (base.market_regime ?? "NEUTRAL") as MarketRegime); }
+
+function compareFactors(trades: ShortLearningTrade[]): FactorComparison[] {
+  const success = trades.filter((t) => t.targetHit);
+  const failure = trades.filter((t) => !t.targetHit);
+  const labels: Record<string,string> = { momentum7d:"Pullback (7日)", momentum20d:"Mean Reversion (MA20)", acceleration:"Stabilization", trend:"Context", risk:"Risk", regimeFit:"Regime", liquidity:"Liquidity" };
+  return Object.entries(labels).map(([key, factor]) => {
+    const a = success.map(t=>t.breakdown[key]).filter((v): v is number => v !== null && v !== undefined);
+    const b = failure.map(t=>t.breakdown[key]).filter((v): v is number => v !== null && v !== undefined);
+    const sa=round(avg(a)), fa=round(avg(b));
+    return { factor, successAverage:sa, failureAverage:fa, difference:round(sa-fa) };
+  }).sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference));
+}
 
 export async function getEtfShortTermLearningSummary() {
   const rows = await fetchRows();
@@ -172,6 +208,7 @@ export async function getEtfShortTermLearningSummary() {
     const list = bySymbol.get(base.symbol) ?? [];
     const idx = list.findIndex((r) => r.snapshot_date === base.snapshot_date);
     if (idx < 0) continue;
+    const previousPrice = idx > 0 ? num(list[idx - 1].price) : null;
     const future = list.slice(idx + 1, idx + 1 + HORIZON);
     // Exactly 7 later snapshot observations are required. This avoids mixing incomplete windows into the result.
     if (future.length < HORIZON) continue;
@@ -191,6 +228,7 @@ export async function getEtfShortTermLearningSummary() {
       endPrice: path[HORIZON - 1].price,
       endReturn: round(pathReturns[HORIZON - 1]),
       shortTermScore: score,
+      midTermScore: num(base.etf_score),
       shortTermSignal: base.short_term_signal ?? "UNKNOWN",
       marketRegime: base.market_regime ?? "UNKNOWN",
       scoreVersion: base.short_term_score_version ?? "unknown",
@@ -204,11 +242,13 @@ export async function getEtfShortTermLearningSummary() {
         momentum7d: num(b.momentum7d), momentum20d: num(b.momentum20d), trend: num(b.trend), acceleration: num(b.acceleration),
         risk: num(b.risk), regimeFit: num(b.regimeFit), liquidity: num(b.liquidity),
       },
+      reboundStatus: "UNKNOWN", reboundScore: 0,
     };
-    const v1 = deriveV1(base);
+    const rebound = deriveRebound(base, previousPrice);
+    const v1 = deriveV1(base, previousPrice);
     trades.push({ ...trade, shortTermScore: v1.score, shortTermSignal: v1.signal, scoreVersion: v1.scoreVersion, overheatPenalty: v1.overheatPenalty, breakdown: { ...v1.breakdown } });
-    const v2 = deriveV2(base);
-    v2Trades.push({ ...trade, shortTermScore: v2.score, shortTermSignal: v2.signal, scoreVersion: v2.scoreVersion, overheatPenalty: v2.overheatPenalty, breakdown: { ...v2.breakdown } });
+    const v2 = deriveV2(base, previousPrice);
+    v2Trades.push({ ...trade, shortTermScore: v2.score, shortTermSignal: v2.signal, scoreVersion: v2.scoreVersion, overheatPenalty: v2.overheatPenalty, breakdown: { ...v2.breakdown }, reboundStatus: rebound.status, reboundScore: rebound.score });
   }
 
   const scoreBuckets = [
@@ -248,6 +288,47 @@ export async function getEtfShortTermLearningSummary() {
   const v2Overall = summarize("全短期Score v2", v2Trades);
   const v2ShortBuy = summarize("短期BUY v2", v2Trades.filter((t) => t.shortTermSignal === "SHORT_BUY"));
 
+  const reboundStatuses = ["CONFIRMED", "PREPARING", "OVERSOLD", "FALLING", "EXTENDED"];
+  const reboundLabels: Record<string,string> = { CONFIRMED:"反発確認", PREPARING:"反発準備", OVERSOLD:"売られ過ぎ", FALLING:"下落継続", EXTENDED:"上昇過熱" };
+  const scoreReboundBuckets = [
+    ...reboundStatuses.map(status => summarize(`70点以上 × ${reboundLabels[status]}`, v2Trades.filter(t => t.shortTermScore >= 70 && t.reboundStatus === status))),
+    summarize("60〜69点 × 反発確認", v2Trades.filter(t => t.shortTermScore >= 60 && t.shortTermScore < 70 && t.reboundStatus === "CONFIRMED")),
+    summarize("60点未満 × 反発確認", v2Trades.filter(t => t.shortTermScore < 60 && t.reboundStatus === "CONFIRMED")),
+  ].filter(b => b.count > 0);
+
+  // Diagnostic only: split the strongest observed rebound setup by Stabilization
+  // (v2 breakdown.acceleration). This does not change Short Score v2 itself.
+  const oversold70Trades = v2Trades.filter(t => t.shortTermScore >= 70 && t.reboundStatus === "OVERSOLD");
+  const stabilizationValue = (t: ShortLearningTrade) => t.breakdown.acceleration;
+  const oversoldStabilizationBuckets = [
+    summarize("Stabilization 60以上", oversold70Trades.filter(t => (stabilizationValue(t) ?? -Infinity) >= 60)),
+    summarize("Stabilization 50〜59", oversold70Trades.filter(t => { const v=stabilizationValue(t); return v !== null && v !== undefined && v >= 50 && v < 60; })),
+    summarize("Stabilization 40〜49", oversold70Trades.filter(t => { const v=stabilizationValue(t); return v !== null && v !== undefined && v >= 40 && v < 50; })),
+    summarize("Stabilization 40未満", oversold70Trades.filter(t => { const v=stabilizationValue(t); return v !== null && v !== undefined && v < 40; })),
+  ];
+  const oversold70Overall = summarize("70点以上 × 売られ過ぎ 全体", oversold70Trades);
+
+  // Diagnostic only: test whether the medium-term score adds useful information
+  // for a ~1-week holding horizon. Mid score is NOT used to alter v2 or OVERSOLD.
+  const midBuckets = (sample: ShortLearningTrade[]) => [
+    summarize("Mid 70以上", sample.filter(t => t.midTermScore !== null && t.midTermScore >= 70)),
+    summarize("Mid 60〜69", sample.filter(t => t.midTermScore !== null && t.midTermScore >= 60 && t.midTermScore < 70)),
+    summarize("Mid 50〜59", sample.filter(t => t.midTermScore !== null && t.midTermScore >= 50 && t.midTermScore < 60)),
+    summarize("Mid 50未満", sample.filter(t => t.midTermScore !== null && t.midTermScore < 50)),
+  ];
+  const shortBuyMidBuckets = midBuckets(v2Trades.filter(t => t.shortTermSignal === "SHORT_BUY"));
+  const reboundEntryMidBuckets = midBuckets(oversold70Trades);
+
+  const buyTrades = v2Trades.filter(t => t.shortTermSignal === "SHORT_BUY");
+  const buyFactorComparison = compareFactors(buyTrades);
+  const highScoreTrades = v2Trades.filter(t => t.shortTermScore >= 80);
+  const highScoreSummary = summarize("80点以上", highScoreTrades);
+  const highScoreDiagnostic: HighScoreDiagnostic = {
+    count: highScoreSummary.count, targetHitRate: highScoreSummary.targetHitRate,
+    averageEndReturn: highScoreSummary.averageEndReturn, averageMfe: highScoreSummary.averageMfe, averageMae: highScoreSummary.averageMae,
+    factors: compareFactors(highScoreTrades),
+  };
+
   return {
     horizonTradingDays: HORIZON,
     targetReturn: TARGET_RETURN,
@@ -259,6 +340,7 @@ export async function getEtfShortTermLearningSummary() {
     latestScoredCount,
     overall: summarize("全短期Score", trades),
     v2Overall, v2ShortBuy, v2ScoreBuckets, v2SignalBuckets,
+    scoreReboundBuckets, oversold70Overall, oversoldStabilizationBuckets, shortBuyMidBuckets, reboundEntryMidBuckets, buyFactorComparison, highScoreDiagnostic,
     shortBuy,
     overheated,
     scoreBuckets,

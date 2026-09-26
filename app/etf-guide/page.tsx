@@ -14,8 +14,9 @@ const sections = [
   {
     title: "Trade Decision（BUY / WAIT / HOLD / REDUCE / SELL）",
     body: [
-      "Trade Decisionは、短期Score v2・中期Score v2・Exit・Rebound・Market Regime・Complianceを統合した実戦用の最終判定です。単独スコアではなく複数条件が同時に揃った時だけBUYを出します。",
-      "未保有ETFでは、短期Signal=SHORT_BUY、短期Score 75以上、中期Score 58以上、Exit 55未満、Danger Penalty 15未満を基本BUY条件にします。過熱・AVOID・PANICではWAITを優先します。",
+      "Trade Decisionは約1週間の保有を想定し、短期Score v2を主軸にExit・Rebound・Market Regime・Complianceを組み合わせた最終判定です。中期Scoreは背景情報として表示しますが、BUYの必須条件にはしません。",
+      "通常の短期BUYは、短期Signal=SHORT_BUY、短期Score 75以上、Exit 55未満、Danger Penalty 15未満を基本条件にします。過熱・AVOID・PANICではWAITを優先します。",
+      "Rebound Entryは Short Score 70以上 × Rebound=OVERSOLD（売られ過ぎ）を基本条件とし、Exit 55未満・Danger Penalty 22未満で短期反発候補としてBUY判定できます。",
       "保有ETFでは、新規BUY条件ではなくExitを優先し、Exit 60以上でREDUCE、75以上でSELL、それ未満はHOLDを基本にします。",
       "推奨投資額は余剰資金の15〜25%を基準に、確信度・Market Regime・短期リスクで下方調整し、現在価格から購入可能な口数に丸めます。",
       "Complianceが対象外・要確認ならBUYを停止し、事前承認が必要なETFは承認前にBUYを出しません。",
@@ -83,7 +84,7 @@ const sections = [
       "下落局面からの反発を0〜100で評価します。底値そのものを当てるのではなく、反発の準備と確認を段階的に判定するための指標です。",
       "現行ロジックの配点は Oversold 25% / Reversal 30% / Trend Repair 30% / Market Regime 15% です。売られ過ぎだけでは買いシグナルにせず、反転とトレンド修復を重くしています。",
       "FALLING: まだ下落優勢 / OVERSOLD: 売られ過ぎ候補 / PREPARING: 反発準備 / CONFIRMED: 反発確認 / EXTENDED: 反発後に上がり過ぎ、という順に読みます。",
-      "実戦では短期Scoreが高く、かつReboundがPREPARINGからCONFIRMEDへ改善する局面を特に注目します。OVERSOLDだけでの買いは避けます。",
+      "Learningでは Short Score 70以上 × OVERSOLD の組み合わせに短期反発の優位性が見られたため、これを『Rebound Entry』として独立表示します。OVERSOLD単独ではなくShort Scoreとの組み合わせで判定します。",
     ],
   },
   {

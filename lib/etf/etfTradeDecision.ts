@@ -43,15 +43,26 @@ function round(value: number, digits = 0) {
   return Math.round(value * p) / p;
 }
 
+export function isReboundEntry(a: EtfAnalysis) {
+  return a.shortTermScore >= 70 && a.rebound.status === "OVERSOLD";
+}
+
 function buyConfidence(a: EtfAnalysis) {
-  const reboundBonus = a.rebound.status === "CONFIRMED" ? 90 : a.rebound.status === "PREPARING" ? 75 : a.rebound.score;
+  // 1週間運用ではMid Scoreを確信度にも混ぜず、短期・反発・リスクを主役にする。
+  const reboundBonus = isReboundEntry(a)
+    ? 90
+    : a.rebound.status === "CONFIRMED"
+      ? 85
+      : a.rebound.status === "PREPARING"
+        ? 75
+        : a.rebound.score;
   return round(
     clamp(
-      a.shortTermScore * 0.45 +
-        a.score * 0.3 +
-        reboundBonus * 0.1 +
+      a.shortTermScore * 0.6 +
+        reboundBonus * 0.15 +
         a.shortTermBreakdown.regimeFit * 0.1 +
-        a.shortTermBreakdown.risk * 0.05,
+        a.shortTermBreakdown.risk * 0.1 +
+        a.shortTermBreakdown.liquidity * 0.05,
       0,
       100
     ),
@@ -173,18 +184,37 @@ export function decideEtfTrade({ analysis: a, surplusCash, position }: DecisionI
   }
 
   const confidence = buyConfidence(a);
-  const buySetup =
-    a.shortTermSignal === "SHORT_BUY" &&
-    a.shortTermScore >= 75 &&
-    a.score >= 58 &&
-    a.exitScore < 55 &&
-    a.shortTermOverheatPenalty < 15;
+  const reboundEntry = isReboundEntry(a);
+  // 1週間運用では Short v2 のシグナルを新規エントリーの主条件にする。
+  // Exit 55/60 は中期寄りの警戒値なので、新規BUYを機械的に潰さない。
+  // ただし Exit 75以上は強い撤退シグナルとして新規エントリーを止める。
+  const hardExitRisk = a.exitScore >= 75 || a.signal === "EXIT";
+  if (hardExitRisk) {
+    return {
+      action: "WAIT",
+      confidence,
+      allocationRate: 0,
+      recommendedAmount: 0,
+      recommendedUnits: 0,
+      positionValue: 0,
+      unrealizedPnl: 0,
+      unrealizedPnlPercent: 0,
+      reasons: [
+        "短期BUY候補ですが、Exit Scoreが強い撤退水準のため新規エントリーを見送ります",
+        `Exit Score ${a.exitScore.toFixed(1)}`,
+      ],
+    };
+  }
+
+  const shortBuySetup = a.shortTermSignal === "SHORT_BUY";
+  const reboundBuySetup = reboundEntry;
+  const buySetup = shortBuySetup || reboundBuySetup;
 
   if (!buySetup) {
-    if (a.shortTermSignal === "READY" && a.score >= 58) {
-      reasons.push("短期Scoreは準備段階です。SHORT_BUYへの改善を待ちます");
+    if (a.shortTermSignal === "READY") {
+      reasons.push("短期Scoreは準備段階です。SHORT_BUYまたはRebound Entry条件を待ちます");
     } else {
-      reasons.push("短期・中期・Exit条件が同時にBUY基準を満たしていません");
+      reasons.push("1週間運用のShort BUY / Rebound Entry条件を満たしていません");
     }
     if (a.shortTermReasons.length) reasons.push(a.shortTermReasons[0]);
     return {
@@ -234,9 +264,9 @@ export function decideEtfTrade({ analysis: a, surplusCash, position }: DecisionI
   }
 
   reasons.push(`余剰資金の約${Math.round(allocationRate * 100)}%を今回の上限目安にします`);
-  if (a.shortTermSignal === "SHORT_BUY") reasons.push("短期Score v2がSHORT_BUY条件です");
-  if (a.score >= 70) reasons.push("中期Scoreも70点以上です");
-  if (a.rebound.status === "CONFIRMED" || a.rebound.status === "PREPARING") reasons.push("Rebound Detectorも反発側です");
+  if (reboundEntry) reasons.push("🔥 Rebound Entry: Short 70以上 × 売られ過ぎです");
+  else if (a.shortTermSignal === "SHORT_BUY") reasons.push("短期Score v2がSHORT_BUY条件です");
+  reasons.push(`中期Score ${a.score.toFixed(1)}は背景情報として表示し、1週間BUYの必須条件には使いません`);
 
   return {
     action: "BUY",

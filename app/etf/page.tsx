@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EtfAnalysis, EtfCategory, EtfComplianceResult } from "@/lib/etf";
-import { decideEtfTrade } from "@/lib/etf/etfTradeDecision";
+import { decideEtfTrade, isReboundEntry } from "@/lib/etf/etfTradeDecision";
 
 
 
@@ -504,6 +504,13 @@ export default function EtfPage() {
     setTradeDrafts((prev) => ({ ...prev, [item.master.symbol]: { quantity: 1, price: item.metrics.price } }));
   };
 
+  const reboundEntries = useMemo(() => {
+    if (!data) return [];
+    return data.analyses
+      .filter((item) => isReboundEntry(item))
+      .sort((a, b) => b.shortTermScore - a.shortTermScore);
+  }, [data]);
+
   const visible = useMemo(() => {
     if (!data) return [];
     return [...data.analyses]
@@ -512,11 +519,14 @@ export default function EtfPage() {
           complianceFilter === "ALL" ||
           effectiveCompliance(item, manualCompliance[item.master.symbol]).status === complianceFilter
       )
-      .sort((a, b) =>
-        rankingMode === "SHORT"
+      .sort((a, b) => {
+        // Rebound Entryは見逃さないよう常に上位へ。その中では選択中のScore順。
+        const reboundDiff = Number(isReboundEntry(b)) - Number(isReboundEntry(a));
+        if (reboundDiff !== 0) return reboundDiff;
+        return rankingMode === "SHORT"
           ? b.shortTermScore - a.shortTermScore
-          : b.score - a.score
-      );
+          : b.score - a.score;
+      });
   }, [data, complianceFilter, rankingMode, manualCompliance]);
 
   return (
@@ -526,7 +536,7 @@ export default function EtfPage() {
           <p className="mb-1 text-xs font-bold text-emerald-300">StockDoc AI Pro</p>
           <h1 className="mb-2 text-3xl font-bold">日本株ETFランキング</h1>
           <p className="text-sm text-slate-300">
-            ETF専用ロジックで、中期・短期・反発・Complianceを確認できます。
+            1週間運用は短期Scoreを主軸に、中期・反発・Complianceも確認できます。
           </p>
         </div>
 
@@ -574,6 +584,33 @@ export default function EtfPage() {
         </div>
 
         {data && (
+          <div className={`mb-5 rounded-2xl border p-4 ${reboundEntries.length > 0 ? "border-fuchsia-500/60 bg-fuchsia-950/30" : "border-slate-700 bg-slate-900"}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-fuchsia-300">🔥 Rebound Entry</p>
+                <p className="mt-1 text-xs text-slate-400">Short ≥70 ＋ 売られ過ぎ（OVERSOLD）</p>
+              </div>
+              <p className={`text-2xl font-black ${reboundEntries.length > 0 ? "text-fuchsia-200" : "text-slate-500"}`}>
+                {reboundEntries.length}件
+              </p>
+            </div>
+            {reboundEntries.length > 0 ? (
+              <div className="mt-3 space-y-1 rounded-lg bg-slate-950/50 p-3 text-xs">
+                {reboundEntries.map((item) => (
+                  <p key={item.master.symbol} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate font-bold text-fuchsia-100">{item.master.symbol} {item.master.shortName}</span>
+                    <span className="shrink-0 text-cyan-300">Short {item.shortTermScore.toFixed(1)}</span>
+                  </p>
+                ))}
+                <p className="pt-1 text-[10px] text-slate-500">該当ETFはランキングでも上位に表示します。</p>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">現在の最新Snapshotには該当ETFがありません。条件成立時はここに銘柄を表示します。</p>
+            )}
+          </div>
+        )}
+
+        {data && (
           <div className="mb-5 rounded-2xl border border-slate-700 bg-slate-900 p-4">
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
@@ -600,7 +637,7 @@ export default function EtfPage() {
               <p className="text-xs font-bold text-emerald-300">ETF TRADE SUPPORT</p>
               <h2 className="mt-1 text-lg font-bold">BUY / WAIT / SELL 判定</h2>
               <p className="mt-1 text-xs leading-5 text-slate-400">
-                V2短期・中期・Exit・Market Regime・Complianceを統合して売買判断を表示します。
+                1週間運用はShort v2を主軸に、Rebound・Exit・Market Regime・Complianceで売買判断します。中期Scoreは背景情報です。
               </p>
             </div>
           </div>
@@ -779,6 +816,11 @@ export default function EtfPage() {
                   >
                     {reboundLabel(item.rebound.status)} {item.rebound.score.toFixed(0)}
                   </span>
+                  {isReboundEntry(item) && (
+                    <span className="rounded-full border border-fuchsia-500/50 bg-fuchsia-500/15 px-2 py-0.5 text-[10px] font-black text-fuchsia-200">
+                      🔥 Rebound Entry
+                    </span>
+                  )}
                 </div>
 
                 <div className={`mt-4 rounded-xl border p-3 ${tradeActionClass(decision.action)}`}>
@@ -819,7 +861,7 @@ export default function EtfPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-3">
-                    <p className="text-xs text-emerald-200">中期Score</p>
+                    <p className="text-xs text-emerald-200">中期Score <span className="text-[9px] font-normal text-slate-400">背景情報</span></p>
                     <div className="mt-1 flex items-end justify-between">
                       <p className="text-2xl font-bold">{item.score.toFixed(1)}</p>
                       <p className={`text-sm font-bold ${signalClass(item.signal)}`}>
