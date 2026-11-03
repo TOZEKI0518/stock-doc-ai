@@ -4,9 +4,12 @@ import { getEtfShortTermLearningSummary } from "@/lib/etfShortTermLearning";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const summary = await getEtfShortTermLearningSummary();
+    const rawTarget = new URL(request.url).searchParams.get("target");
+    const target = rawTarget === null ? 2 : Number(rawTarget);
+    if (![1, 1.5, 2].includes(target)) return NextResponse.json({ ok: false, error: "Invalid target" }, { status: 400 });
+    const summary = await getEtfShortTermLearningSummary(target);
     return NextResponse.json({ ok: true, ...summary });
   } catch (error) {
     console.error("ETF SHORT LEARNING SUMMARY ERROR:", error);

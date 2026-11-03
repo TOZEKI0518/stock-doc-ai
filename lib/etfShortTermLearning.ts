@@ -61,6 +61,8 @@ export type ShortLearningTrade = {
   targetHit: boolean;
   targetHitDay: number | null;
   targetHitDate: string | null;
+  delayedTargetHit: boolean;
+  delayedTargetHitDay: number | null;
   mfe: number;
   mae: number;
   breakdown: Record<string, number | null>;
@@ -95,7 +97,7 @@ export type ShortLearningBucket = {
   averageHitDay: number | null;
 };
 
-const TARGET_RETURN = 2;
+const DEFAULT_TARGET_RETURN = 2;
 const HORIZON = 7;
 
 function num(value: unknown): number | null {
@@ -119,9 +121,9 @@ function ret(base: number, price: number) {
 function labelSignal(signal: string) {
   return signal === "SHORT_BUY" ? "短期BUY" : signal === "READY" ? "準備" : signal === "WAIT" ? "待機" : signal === "OVERHEATED" ? "過熱" : signal === "AVOID" ? "回避" : signal;
 }
-function summarize(label: string, trades: ShortLearningTrade[]): ShortLearningBucket {
-  const hitDays = trades.flatMap((t) => (t.targetHitDay === null ? [] : [t.targetHitDay]));
-  const hits = trades.filter((t) => t.targetHit).length;
+function summarize(label: string, trades: ShortLearningTrade[], delayed = false): ShortLearningBucket {
+  const hitDays = trades.flatMap((t) => { const day = delayed ? t.delayedTargetHitDay : t.targetHitDay; return day === null ? [] : [day]; });
+  const hits = trades.filter((t) => delayed ? t.delayedTargetHit : t.targetHit).length;
 
   return {
     label,
@@ -183,7 +185,8 @@ function compareFactors(trades: ShortLearningTrade[]): FactorComparison[] {
   }).sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference));
 }
 
-export async function getEtfShortTermLearningSummary() {
+export async function getEtfShortTermLearningSummary(targetReturn: number = DEFAULT_TARGET_RETURN) {
+  const TARGET_RETURN = [1, 1.5, 2].includes(targetReturn) ? targetReturn : DEFAULT_TARGET_RETURN;
   const rows = await fetchRows();
   const valid = rows.filter((r) => r.snapshot_date && r.symbol && num(r.price) !== null);
   const scored = valid.filter((r) => num(r.short_term_score) !== null && r.short_term_signal);
@@ -216,6 +219,9 @@ export async function getEtfShortTermLearningSummary() {
     if (path.length < HORIZON) continue;
     const pathReturns = path.map((x) => ret(basePrice, x.price));
     const hitIndex = pathReturns.findIndex((r) => r >= TARGET_RETURN);
+    // Conservative daily-snapshot proxy: exclude the first future observation.
+    // This is NOT an exact 24-hour calculation; trade timestamps are unavailable.
+    const delayedHitIndex = pathReturns.findIndex((r, i) => i >= 1 && r >= TARGET_RETURN);
     const b = base.short_term_breakdown ?? {};
     const trade: ShortLearningTrade = {
       symbol: base.symbol,
@@ -236,6 +242,8 @@ export async function getEtfShortTermLearningSummary() {
       targetHit: hitIndex >= 0,
       targetHitDay: hitIndex >= 0 ? hitIndex + 1 : null,
       targetHitDate: hitIndex >= 0 ? path[hitIndex].row.snapshot_date : null,
+      delayedTargetHit: delayedHitIndex >= 0,
+      delayedTargetHitDay: delayedHitIndex >= 0 ? delayedHitIndex + 1 : null,
       mfe: round(Math.max(...pathReturns)),
       mae: round(Math.min(...pathReturns)),
       breakdown: {
@@ -272,10 +280,10 @@ export async function getEtfShortTermLearningSummary() {
   const shortBuy = summarize("短期BUY", trades.filter((t) => t.shortTermSignal === "SHORT_BUY"));
   const overheated = summarize("過熱", trades.filter((t) => t.shortTermSignal === "OVERHEATED"));
   const insights: string[] = [];
-  if (shortBuy.count >= 5) insights.push(`短期BUYは${shortBuy.count}件中${shortBuy.targetHits}件が7営業日以内の終値で+2%に到達（${shortBuy.targetHitRate.toFixed(1)}%）しました。`);
+  if (shortBuy.count >= 5) insights.push(`短期BUYは${shortBuy.count}件中${shortBuy.targetHits}件が7営業日以内の終値で+${TARGET_RETURN}%に到達（${shortBuy.targetHitRate.toFixed(1)}%）しました。`);
   if (overheated.count >= 5) insights.push(`過熱判定は${overheated.count}件。7営業日の平均MFE ${overheated.averageMfe >= 0 ? "+" : ""}${overheated.averageMfe.toFixed(2)}%、平均MAE ${overheated.averageMae.toFixed(2)}%です。`);
   const eligible = scoreBuckets.filter((b) => b.count >= 5).sort((a, b) => b.targetHitRate - a.targetHitRate);
-  if (eligible[0]) insights.push(`${eligible[0].label}が件数5件以上のScore帯で+2%到達率最大（${eligible[0].targetHitRate.toFixed(1)}%）です。`);
+  if (eligible[0]) insights.push(`${eligible[0].label}が件数5件以上のScore帯で+${TARGET_RETURN}%到達率最大（${eligible[0].targetHitRate.toFixed(1)}%）です。`);
   if (!insights.length) insights.push("短期Score保存開始後、7営業日分の将来Snapshotがそろうと検証結果が表示されます。");
 
   const v2ScoreBuckets = [
@@ -340,6 +348,12 @@ export async function getEtfShortTermLearningSummary() {
     latestScoredCount,
     overall: summarize("全短期Score", trades),
     v2Overall, v2ShortBuy, v2ScoreBuckets, v2SignalBuckets,
+    delayedComparison: {
+      overall: summarize("全Score（2営業日目以降）", v2Trades, true),
+      shortBuy: summarize("短期BUY（2営業日目以降）", v2Trades.filter(t => t.shortTermSignal === "SHORT_BUY"), true),
+      reboundEntry: summarize("Rebound Entry（2営業日目以降）", oversold70Trades, true),
+      reboundStabilization: oversoldStabilizationBuckets.map(b => summarize(b.label, oversold70Trades.filter(t => { const v=t.breakdown.acceleration; return v !== null && v !== undefined && (b.label === "Stabilization 60以上" ? v >= 60 : b.label === "Stabilization 50〜59" ? v >= 50 && v < 60 : b.label === "Stabilization 40〜49" ? v >= 40 && v < 50 : v < 40); }), true)),
+    },
     scoreReboundBuckets, oversold70Overall, oversoldStabilizationBuckets, shortBuyMidBuckets, reboundEntryMidBuckets, buyFactorComparison, highScoreDiagnostic,
     shortBuy,
     overheated,
@@ -351,6 +365,6 @@ export async function getEtfShortTermLearningSummary() {
     insights: insights.slice(0, 4),
     topMfe: [...trades].sort((a, b) => b.mfe - a.mfe).slice(0, 10),
     worstMae: [...trades].sort((a, b) => a.mae - b.mae).slice(0, 10),
-    methodology: "基準日の翌Snapshotから7件を7営業日相当として使用。+2%到達・MFE・MAEはいずれも日次終値ベース。高値/安値のIntraday到達は判定しません。",
+    methodology: `基準日の翌Snapshotから7件を7営業日相当として使用。+${TARGET_RETURN}%到達・MFE・MAEはいずれも日次終値ベース。高値/安値のIntraday到達は判定しません。`,
   };
 }
