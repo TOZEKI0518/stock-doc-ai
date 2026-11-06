@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EtfAnalysis, EtfCategory, EtfComplianceResult } from "@/lib/etf";
 import { decideEtfTrade, isReboundEntry } from "@/lib/etf/etfTradeDecision";
+import { buildEtfAnalysisPrompt } from "@/lib/etf/etfAnalysisPrompt";
 
 
 
@@ -353,6 +354,8 @@ export default function EtfPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [copiedPromptSymbol, setCopiedPromptSymbol] = useState<string | null>(null);
+  const [promptCopyError, setPromptCopyError] = useState<string | null>(null);
   const [signalAlerts, setSignalAlerts] = useState<string[]>([]);
   const lastActionsRef = useRef<Record<string, string>>({});
 
@@ -843,6 +846,34 @@ export default function EtfPage() {
                             推奨口数<br/><b className="text-sm">{decision.recommendedUnits}口</b>
                           </div>
                         </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const prompt = buildEtfAnalysisPrompt({
+                            name: item.master.shortName,
+                            symbol: item.master.symbol,
+                            referencePrice: item.metrics.price,
+                            recommendedUnits: decision.action === "BUY" ? decision.recommendedUnits : 0,
+                            recommendedAmount: decision.action === "BUY" ? decision.recommendedAmount : 0,
+                            updatedAt: lastRefreshAt,
+                            marketSession: isJapanMarketOpenNow() ? "東証時間内" : "東証時間外",
+                          });
+                          try {
+                            await navigator.clipboard.writeText(prompt);
+                            setCopiedPromptSymbol(item.master.symbol);
+                            setPromptCopyError(null);
+                          } catch {
+                            setCopiedPromptSymbol(null);
+                            setPromptCopyError(item.master.symbol);
+                          }
+                        }}
+                        className="mt-3 w-full rounded-lg border border-cyan-500/50 bg-cyan-950/40 px-3 py-2 text-xs font-bold text-cyan-200 hover:bg-cyan-900/50"
+                      >
+                        {copiedPromptSymbol === item.master.symbol ? "✓ 分析プロンプトをコピーしました" : "分析プロンプトをコピー"}
+                      </button>
+                      {promptCopyError === item.master.symbol && (
+                        <p className="mt-1 text-xs text-amber-300">コピーできませんでした。HTTPSまたはlocalhostで開き、ブラウザのクリップボード権限を確認してください。</p>
                       )}
                       {(decision.action === "SELL" || decision.action === "REDUCE") && decision.recommendedUnits > 0 && (
                         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
